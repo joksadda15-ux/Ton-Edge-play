@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ton Edge</title>
+    <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.onkeydown = function(e) {
+            if(e.keyCode==123) return false;
+            if(e.ctrlKey&&e.shiftKey&&['I','C','J'].includes(String.fromCharCode(e.keyCode))) return false;
+            if(e.ctrlKey&&e.keyCode=='U'.charCodeAt(0)) return false;
+        }
+    </script>
+    <!-- TON Connect -->
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
+<style>
+:root {
+    --primary:#6d28d9;
+    --primary-dark:#5b21b6;
+    --primary-light:#ede9fe;
+    --accent:#8b5cf6;
+    --white:#ffffff;
+    --bg-page:#07060f;
+    --bg-card:#100e1e;
+    --bg-section:#0d0b1a;
+    --text-main:#e2e8f0;
+    --text-sub:#cbd5e1;
+    --text-muted:#94a3b8;
+    --border:#2a2040;
+    --border-mid:#3d3060;
+    --gold:#f59e0b;
+    --edg:#a78bfa;
+    --edg-bg:#1e1535;
+    --green:#10b981;
+    --red:#ef4444;
+    --egg-purple:#7c3aed;
+    --egg-gold:#fbbf24;
+    --shadow:0 2px 12px rgba(109,40,217,0.12);
+    --shadow-md:0 4px 24px rgba(109,40,217,0.18);
+    --font:'Outfit',sans-serif;
+    --mono:'Space Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg-page);color:var(--text-main);font-family:var(--font);padding:65px 0 85px;min-height:100vh;-webkit-tap-highlight-color:transparent;overflow-x:hidden;}
+
+/* HEADER */
+.app-header{position:fixed;top:0;left:0;right:0;z-index:1000;height:60px;background:linear-gradient(135deg,#07060f 0%,#0f0b1f 40%,#160d2e 100%);border-bottom:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:space-between;padding:0 16px;box-shadow:0 4px 24px rgba(0,0,0,0.6),0 1px 0 rgba(139,92,246,0.2);}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1.15rem;color:#e2e8f0;letter-spacing:0.5px;}
+.brand span{color:#a78bfa;}
+.head-actions{display:flex;gap:8px;}
+.icon-btn{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.22s;font-size:0.95rem;position:relative;}
+.icon-btn:active{transform:scale(0.92);}
+#btn-promo{background:linear-gradient(135deg,#f59e0b,#fbbf24);border:none;color:#fff;box-shadow:0 3px 12px rgba(245,158,11,0.4);}
+#btn-history{background:linear-gradient(135deg,#6d28d9,#8b5cf6);border:none;color:#fff;box-shadow:0 3px 12px rgba(109,40,217,0.4);}
+#btn-withdraw{background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.4);color:#fff;}
+
+/* CONTAINER */
+.container{max-width:600px;margin:0 auto;padding:0 14px;}
+
+/* CARDS */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
+.card-purple{background:linear-gradient(145deg,#0a0816 0%,#130e28 30%,#1c1240 65%,#160d35 100%);border:1px solid rgba(139,92,246,0.35);color:#fff;box-shadow:0 12px 40px rgba(0,0,0,0.6),0 0 0 1px rgba(139,92,246,0.1),inset 0 1px 0 rgba(255,255,255,0.04);}
+
+/* BALANCE CARD */
+.bal-header{padding:20px 18px;}
+.user-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.avatar{width:48px;height:48px;border-radius:14px;background:rgba(139,92,246,0.25);border:2px solid rgba(139,92,246,0.5);display:flex;align-items:center;justify-content:center;font-size:1.5rem;}
+.user-name{font-weight:700;font-size:0.9rem;color:#e2e8f0;}
+.user-id-pill{font-family:var(--mono);font-size:0.7rem;color:rgba(255,255,255,0.6);background:rgba(0,0,0,0.2);padding:3px 8px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:2px;}
+.bal-big{text-align:center;margin-bottom:14px;}
+.bal-big .egg-icon{font-size:2.2rem;display:block;margin-bottom:4px;}
+.bal-big .bal-num{font-family:var(--mono);font-size:2.6rem;font-weight:800;color:#c4b5fd;line-height:1;}
+.bal-big .bal-lbl{font-size:0.75rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1.5px;margin-top:4px;}
+.bal-big .usdt-val{font-size:0.82rem;color:rgba(255,255,255,0.5);margin-top:6px;background:rgba(255,255,255,0.07);border-radius:20px;padding:4px 12px;display:inline-block;}
+.bal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;}
+.bal-box{border-radius:13px;padding:11px;text-align:center;}
+.bal-box:first-child{background:linear-gradient(135deg,rgba(167,139,250,0.15),rgba(167,139,250,0.05));border:1px solid rgba(167,139,250,0.3);}
+.bal-box:last-child{background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05));border:1px solid rgba(245,158,11,0.3);}
+.bal-box .b-lbl{font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin-bottom:2px;}
+.bal-box .b-num{font-family:var(--mono);font-size:1rem;font-weight:800;}
+.bal-box:first-child .b-num{color:#c4b5fd;}
+.bal-box:last-child .b-num{color:#fde68a;}
+
+/* SECTION TITLE */
+.sec-title{font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.45);margin-bottom:12px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:1.5px;}
+.sec-title i{color:#8b5cf6;}
+
+/* TASK CARDS */
+.task-card{background:#100e1e;border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:13px 15px;margin-bottom:8px;display:flex;align-items:center;gap:12px;transition:0.2s;box-shadow:0 2px 12px rgba(0,0,0,0.3);}
+.task-card:hover{border-color:rgba(139,92,246,0.5);}
+.t-icon{width:42px;height:42px;border-radius:12px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;font-size:1.15rem;color:#a78bfa;flex-shrink:0;}
+.t-info{flex:1;}
+.t-name{font-size:0.92rem;font-weight:700;color:#e2e8f0;}
+.t-reward{font-size:0.75rem;color:#a78bfa;font-weight:600;margin-top:2px;}
+
+/* BUTTONS */
+.btn{padding:12px 20px;border:none;border-radius:12px;font-family:var(--font);font-weight:700;font-size:0.88rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:all 0.15s ease;letter-spacing:0.3px;position:relative;top:0;}
+.btn:active{transform:scale(0.95) translateY(2px);box-shadow:none!important;}
+.btn-primary{background:linear-gradient(160deg,#a78bfa 0%,#7c3aed 40%,#6d28d9 100%);color:#fff;box-shadow:0 6px 0 #4c1d95,0 8px 16px rgba(109,40,217,0.4);}
+.btn-primary:active{box-shadow:0 2px 0 #4c1d95!important;}
+.btn-gold{background:linear-gradient(160deg,#fcd34d 0%,#f59e0b 40%,#d97706 100%);color:#1a1a2e;box-shadow:0 6px 0 #b45309,0 8px 16px rgba(245,158,11,0.4);}
+.btn-gold:active{box-shadow:0 2px 0 #b45309!important;}
+.btn-green{background:linear-gradient(160deg,#34d399 0%,#10b981 40%,#059669 100%);color:#fff;box-shadow:0 6px 0 #047857,0 8px 16px rgba(16,185,129,0.4);}
+.btn-green:active{box-shadow:0 2px 0 #047857!important;}
+.btn-outline{background:transparent;border:1.5px solid rgba(139,92,246,0.5);color:#a78bfa;box-shadow:0 4px 0 rgba(109,40,217,0.15);}
+.btn-outline:active{box-shadow:0 1px 0 rgba(109,40,217,0.15)!important;}
+.btn-disabled{background:#1e1a2e!important;color:#4a4070!important;box-shadow:none!important;cursor:not-allowed;border:none!important;}
+.btn-full{width:100%;}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#0d0b1a;border-top:1px solid rgba(139,92,246,0.2);display:flex;padding:8px 0 16px;z-index:1000;box-shadow:0 -4px 20px rgba(0,0,0,0.5);}
+.b-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-muted);font-size:0.62rem;font-weight:700;text-transform:uppercase;cursor:pointer;transition:0.2s;}
+.b-nav-item i{font-size:1.2rem;}
+.b-nav-item.active{color:#a78bfa;text-shadow:0 0 12px rgba(167,139,250,0.5);}
+.b-nav-item.active i{transform:translateY(-2px);}
+
+/* SECTIONS */
+.content-section{display:none;animation:slideIn 0.25s ease;}
+.content-section.active{display:block;}
+@keyframes slideIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* MODALS */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.show{display:flex;}
+.modal-box{background:#120f22;border:1px solid rgba(139,92,246,0.3);border-radius:24px;width:100%;max-width:360px;padding:24px;text-align:center;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.8);animation:popModal 0.35s cubic-bezier(0.175,0.885,0.32,1.275);max-height:88vh;overflow-y:auto;}
+.modal-title{font-size:1.15rem;font-weight:800;color:#e2e8f0;margin-bottom:6px;}
+.modal-sub{font-size:0.82rem;color:#94a3b8;margin-bottom:18px;}
+.input-field{width:100%;background:#1a1530;border:1.5px solid #3d3060;padding:13px 14px;border-radius:12px;color:#e2e8f0;font-family:var(--font);font-size:0.9rem;margin-bottom:12px;outline:none;transition:0.2s;}
+.input-field::placeholder{color:#4a4070;}
+.input-field:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,0.15);}
+.info-box{background:rgba(139,92,246,0.08);border:1.5px solid rgba(139,92,246,0.25);border-radius:12px;padding:12px 14px;font-size:0.8rem;color:#cbd5e1;line-height:1.8;text-align:left;margin-bottom:14px;}
+.info-box b{color:#a78bfa;}
+
+@keyframes popModal{from{transform:scale(0.85);opacity:0;}to{transform:scale(1);opacity:1;}}
+
+/* TASK TYPE BUTTONS */
+.task-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.task-type-btn{padding:14px 10px;background:#1a1530;border:1.5px solid #3d3060;border-radius:14px;text-align:center;cursor:pointer;transition:0.2s;}
+.task-type-btn:hover,.task-type-btn.active{background:rgba(139,92,246,0.15);border-color:#7c3aed;}
+.task-type-btn i{font-size:1.5rem;color:#a78bfa;display:block;margin-bottom:5px;}
+.task-type-btn span{font-size:0.78rem;font-weight:700;color:#e2e8f0;}
+
+/* REFER STATS */
+.refer-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.refer-stat-box{background:rgba(139,92,246,0.1);border:1.5px solid rgba(139,92,246,0.3);border-radius:12px;padding:10px;text-align:center;}
+.refer-stat-val{font-family:var(--mono);font-size:1.2rem;font-weight:800;color:#a78bfa;}
+.refer-stat-label{font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.5px;}
+
+/* STATUS BADGES */
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:0.68rem;font-weight:700;text-transform:uppercase;}
+.status-pending{background:#3d2800;color:#fbbf24;}
+.status-success{background:#052e16;color:#4ade80;}
+.status-failed{background:#2d0a0a;color:#f87171;}
+
+/* LOADER */
+.loader-spin{width:22px;height:22px;border:2.5px solid var(--border-mid);border-top-color:#7c3aed;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto;}
+@keyframes spin{100%{transform:rotate(360deg);}}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:14px 0;}
+
+/* PLATFORM FILTER */
+.platform-row{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;}
+.platform-pill{flex-shrink:0;padding:6px 13px;border-radius:20px;font-size:0.76rem;font-weight:700;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:var(--text-sub);cursor:pointer;transition:0.2s;white-space:nowrap;}
+.platform-pill.active,.platform-pill:hover{background:rgba(139,92,246,0.2);color:#a78bfa;border-color:rgba(139,92,246,0.4);}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:30px 20px;color:var(--text-muted);}
+.empty-state i{font-size:2.5rem;opacity:0.4;display:block;margin-bottom:10px;}
+.empty-state p{font-size:0.85rem;}
+
+/* EGG HATCH STYLES */
+.egg-banner{background:linear-gradient(135deg,#2d1254,#4c1d95,#6d28d9);padding:22px 18px 26px;border-radius:0 0 22px 22px;margin-bottom:14px;text-align:center;}
+.egg-display{font-size:5rem;line-height:1;margin-bottom:8px;cursor:pointer;transition:transform 0.2s;user-select:none;filter:drop-shadow(0 0 20px rgba(167,139,250,0.6));}
+.egg-display:active{transform:scale(0.92);}
+.egg-display.cracking{animation:eggCrack 0.6s ease;}
+@keyframes eggCrack{0%{transform:scale(1);}20%{transform:scale(1.15) rotate(-5deg);}40%{transform:scale(1.1) rotate(5deg);}60%{transform:scale(1.2) rotate(-3deg);}80%{transform:scale(0.95) rotate(0);}100%{transform:scale(1);}}
+.egg-reward-pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2.5rem;font-weight:800;color:#fbbf24;text-shadow:0 0 30px rgba(251,191,36,0.8);pointer-events:none;z-index:9999;animation:popFade 1.5s ease forwards;}
+@keyframes popFade{0%{opacity:0;transform:translate(-50%,-60%);font-size:2rem;}30%{opacity:1;font-size:2.8rem;}80%{opacity:1;}100%{opacity:0;transform:translate(-50%,-80%);}}
+
+/* DEPOSIT PKG */
+.dep-pkg-btn{padding:10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg-section);font-weight:700;font-size:0.82rem;color:var(--text-main);cursor:pointer;transition:0.2s;}
+.dep-pkg-btn.active{background:#1e1535;border-color:#7c3aed!important;color:#c4b5fd;}
+
+/* CREATE TASK BTN */
+.create-task-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:15px 20px;background:linear-gradient(135deg,#120a30,#1e1040,#2a1560);border:1px solid rgba(139,92,246,0.4);border-radius:16px;color:#e2e8f0;font-family:var(--font);font-weight:800;font-size:0.95rem;cursor:pointer;width:100%;margin-bottom:14px;box-shadow:0 6px 24px rgba(0,0,0,0.4);transition:0.2s;}
+.create-task-btn:active{transform:scale(0.98);}
+.create-task-icon{width:36px;height:36px;background:rgba(139,92,246,0.3);border:1px solid rgba(139,92,246,0.4);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#a78bfa;}
+
+/* ALERT MODAL */
+#alert-modal.show{display:flex;}
+#alert-modal .modal-box{border-radius:20px;}
+.alert-icon-wrap{font-size:2.5rem;margin-bottom:10px;}
+</style>
+</head>
+<body>
+
+<!-- ══ SPLASH SCREEN ══ -->
+<div id="splash-screen" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(160deg,#07060f 0%,#0f0820 35%,#150d30 65%,#1c1040 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Outfit,sans-serif;transition:opacity 0.5s ease;">
+    <div style="margin-bottom:28px;text-align:center;">
+        <div style="width:84px;height:84px;border-radius:26px;background:linear-gradient(135deg,#6d28d9,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:2.6rem;margin:0 auto 14px;box-shadow:0 8px 32px rgba(109,40,217,0.6);animation:splashPulse 1.5s ease-in-out infinite;">🥚</div>
+        <div style="font-size:1.8rem;font-weight:800;color:#fff;letter-spacing:-0.5px;">Ton<span style="color:#a78bfa;">Edge</span></div>
+        <div style="font-size:0.8rem;color:rgba(255,255,255,0.45);margin-top:4px;letter-spacing:2px;text-transform:uppercase;">Earn · Hatch · Withdraw</div>
+    </div>
+    <div style="width:180px;height:4px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;">
+        <div style="height:100%;background:linear-gradient(90deg,#6d28d9,#a78bfa);border-radius:99px;animation:splashBar 2s ease-in-out forwards;width:0%;"></div>
+    </div>
+    <style>
+        @keyframes splashPulse{0%,100%{box-shadow:0 8px 32px rgba(109,40,217,0.6);}50%{box-shadow:0 8px 48px rgba(139,92,246,0.9);transform:scale(1.04);}}
+        @keyframes splashBar{0%{width:0%;}100%{width:100%;}}
+    </style>
+</div>
+
+<!-- ══ HEADER ══ -->
+<header class="app-header">
+    <div class="brand">🥚 Ton<span>Edge</span></div>
+    <div class="head-actions">
+        <div class="icon-btn" id="btn-promo" title="Promo Code"><i class="fas fa-ticket-alt"></i></div>
+        <div class="icon-btn" id="btn-history" title="History"><i class="fas fa-history"></i></div>
+        <div class="icon-btn" id="btn-withdraw" title="Withdraw"><i class="fas fa-wallet"></i></div>
+    </div>
+</header>
+
+<main>
+
+<!-- ══ TASKS SECTION ══ -->
+<section id="sec-tasks" class="content-section active" style="padding-bottom:90px;">
+    <div class="container">
+        <!-- Balance Card -->
+        <div class="card card-purple bal-header" style="margin-bottom:14px;margin-top:10px;">
+            <div class="user-row">
+                <div class="avatar">🥚</div>
+                <div>
+                    <div class="user-name" id="user-name-display">Loading...</div>
+                    <div class="user-id-pill" id="uid-display"><i class="fas fa-copy" style="font-size:0.6rem;"></i> <span>---</span></div>
+                </div>
+            </div>
+            <div class="bal-big">
+                <span class="egg-icon">🪙</span>
+                <div class="bal-num" id="bal-edg">0</div>
+                <div class="bal-lbl">Edg Balance</div>
+                <div class="usdt-val" id="bal-usdt-val">≈ $0.0000 USDT</div>
+            </div>
+            <div class="bal-grid">
+                <div class="bal-box">
+                    <div class="b-lbl">📋 Tasks Done</div>
+                    <div class="b-num" id="tasks-done-count">0</div>
+                </div>
+                <div class="bal-box">
+                    <div class="b-lbl">💎 TON Value</div>
+                    <div class="b-num" id="bal-ton-val">0.0000</div>
+                </div>
+            </div>
+            <!-- Refer & Withdraw inline -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+                <button class="btn btn-outline btn-full" id="btn-refer-inline" style="font-size:0.8rem;padding:10px;"><i class="fas fa-users"></i> Refer & Earn</button>
+                <button class="btn btn-primary btn-full" id="btn-withdraw-inline" style="font-size:0.8rem;padding:10px;"><i class="fas fa-wallet"></i> Withdraw</button>
+            </div>
+        </div>
+
+        <!-- Create Task Button -->
+        <button class="create-task-btn" id="btn-create-task">
+            <div class="create-task-icon"><i class="fas fa-plus"></i></div>
+            <div style="text-align:left;"><div>Create a Task</div><div style="font-size:0.72rem;font-weight:400;opacity:0.65;margin-top:1px;">Pay per task completion</div></div>
+            <i class="fas fa-chevron-right" style="margin-left:auto;opacity:0.5;"></i>
+        </button>
+
+        <!-- Filter pills -->
+        <div class="platform-row">
+            <div class="platform-pill active" data-filter="all">All</div>
+            <div class="platform-pill" data-filter="telegram_channel">Channel</div>
+            <div class="platform-pill" data-filter="telegram_group">Group</div>
+            <div class="platform-pill" data-filter="telegram_bot">Bot</div>
+            <div class="platform-pill" data-filter="social">Social</div>
+            <div class="platform-pill" data-filter="my_tasks">My Tasks</div>
+        </div>
+
+        <div class="sec-title"><i class="fas fa-clipboard-list"></i> Available Tasks</div>
+        <div id="task-list-container">
+            <div style="text-align:center;padding:30px 0;"><div class="loader-spin"></div></div>
+        </div>
+    </div>
+</section>
+
+<!-- ══ EGG HATCH SECTION ══ -->
+<section id="sec-egg" class="content-section" style="padding-bottom:90px;">
+    <!-- Header Banner -->
+    <div class="egg-banner">
+        <div style="font-size:1.3rem;font-weight:800;color:#fff;margin-bottom:4px;">🥚 Egg Hatch</div>
+        <div style="font-size:0.76rem;color:rgba(255,255,255,0.65);">Hatch every 4 hours • Earn 30–50 Edg per hatch</div>
+    </div>
+
+    <div style="padding:0 14px;">
+        <!-- Egg display -->
+        <div style="background:#100e1e;border-radius:22px;border:2px solid rgba(139,92,246,0.3);padding:28px 18px;text-align:center;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+            <div id="egg-display" class="egg-display">🥚</div>
+            <div id="egg-result-text" style="font-size:0.9rem;font-weight:700;min-height:26px;margin-bottom:16px;color:#94a3b8;"></div>
+            <button id="btn-hatch-egg" class="btn btn-primary" style="padding:14px 32px;font-size:0.95rem;border-radius:16px;width:100%;max-width:220px;margin:0 auto;display:flex;">
+                🥚 Hatch Egg
+            </button>
+            <div style="font-size:0.68rem;color:#94a3b8;margin-top:10px;line-height:1.5;">⏰ Cooldown: 4 hours between hatches</div>
+        </div>
+
+        <!-- Cooldown banner -->
+        <div id="egg-cooldown-banner" style="display:none;background:rgba(109,40,217,0.15);border:1.5px solid rgba(139,92,246,0.4);border-radius:12px;padding:10px 14px;margin-bottom:12px;text-align:center;font-size:0.82rem;color:#c4b5fd;font-weight:600;">
+            ⏳ Next hatch in: <span id="egg-cooldown-text" style="font-family:var(--mono);">--:--:--</span>
+        </div>
+
+        <!-- Reward info -->
+        <div style="background:#100e1e;border-radius:18px;border:1.5px solid rgba(139,92,246,0.3);padding:14px;margin-bottom:12px;">
+            <div style="font-weight:800;font-size:0.82rem;color:#a78bfa;margin-bottom:10px;">🎁 Hatch Rewards</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+                <div style="background:rgba(139,92,246,0.1);border-radius:12px;padding:10px 6px;border:1.5px solid rgba(139,92,246,0.3);">
+                    <div style="font-size:1.1rem;">🥚</div>
+                    <div style="font-weight:800;font-size:0.78rem;color:#c4b5fd;margin-top:3px;">Common</div>
+                    <div style="font-size:0.72rem;color:#a78bfa;">+30 Edg</div>
+                    <div style="font-size:0.62rem;color:#94a3b8;">50% chance</div>
+                </div>
+                <div style="background:rgba(245,158,11,0.1);border-radius:12px;padding:10px 6px;border:1.5px solid rgba(245,158,11,0.3);">
+                    <div style="font-size:1.1rem;">🐣</div>
+                    <div style="font-weight:800;font-size:0.78rem;color:#fbbf24;margin-top:3px;">Rare</div>
+                    <div style="font-size:0.72rem;color:#fcd34d;">+40 Edg</div>
+                    <div style="font-size:0.62rem;color:#94a3b8;">35% chance</div>
+                </div>
+                <div style="background:rgba(16,185,129,0.1);border-radius:12px;padding:10px 6px;border:1.5px solid rgba(16,185,129,0.3);">
+                    <div style="font-size:1.1rem;">🐉</div>
+                    <div style="font-weight:800;font-size:0.78rem;color:#4ade80;margin-top:3px;">Epic</div>
+                    <div style="font-size:0.72rem;color:#86efac;">+50 Edg</div>
+                    <div style="font-size:0.62rem;color:#94a3b8;">15% chance</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+            <div style="background:#100e1e;border-radius:14px;border:1.5px solid rgba(139,92,246,0.2);padding:14px;text-align:center;">
+                <div id="egg-total-hatches" style="font-size:1.5rem;font-weight:800;color:#a78bfa;font-family:var(--mono);">0</div>
+                <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">Total Hatches</div>
+            </div>
+            <div style="background:#100e1e;border-radius:14px;border:1.5px solid rgba(139,92,246,0.2);padding:14px;text-align:center;">
+                <div id="egg-total-earned" style="font-size:1.5rem;font-weight:800;color:#4ade80;font-family:var(--mono);">0</div>
+                <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">Edg Earned</div>
+            </div>
+        </div>
+
+        <!-- Recent Hatch History -->
+        <div style="background:#100e1e;border-radius:16px;border:1.5px solid rgba(139,92,246,0.2);padding:14px;margin-bottom:14px;">
+            <div style="font-weight:800;font-size:0.82rem;color:#cbd5e1;margin-bottom:10px;">📜 Recent Hatches</div>
+            <div id="egg-history" style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:8px 0;">No hatches yet</div>
+        </div>
+    </div>
+</section>
+
+<!-- ══ REFER SECTION ══ -->
+<section id="sec-refer" class="content-section" style="padding-bottom:90px;">
+    <div style="padding:22px 18px 26px;background:linear-gradient(135deg,#0f0820,#1c1040,#2a1560);border-radius:0 0 22px 22px;margin-bottom:14px;text-align:center;">
+        <div style="font-size:2rem;margin-bottom:6px;">👥</div>
+        <div style="font-size:1.2rem;font-weight:800;color:#fff;">Refer & Earn</div>
+        <div style="font-size:0.76rem;color:rgba(255,255,255,0.6);margin-top:3px;">Earn 10 Edg per valid referral</div>
+    </div>
+    <div style="padding:0 14px;">
+        <div class="refer-stat-grid">
+            <div class="refer-stat-box"><div class="refer-stat-val" id="ref-total">0</div><div class="refer-stat-label">Total Refs</div></div>
+            <div class="refer-stat-box"><div class="refer-stat-val" id="ref-valid">0</div><div class="refer-stat-label">Valid Refs</div></div>
+            <div class="refer-stat-box"><div class="refer-stat-val" id="ref-earned">0</div><div class="refer-stat-label">Edg Earned</div></div>
+        </div>
+        <div class="info-box" style="margin-bottom:14px;background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3);">
+            🎁 Refer reward: <b style="color:#4ade80;">+10 Edg</b> per valid referral<br>
+            ✅ Valid when: friend completes <b>10 tasks</b><br>
+            <span style="font-size:0.72rem;color:var(--text-muted);">Share your link and earn when friends join & complete tasks.</span>
+        </div>
+        <input type="text" class="input-field" id="invite-link" readonly placeholder="Loading...">
+        <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline btn-full" id="invite-copy"><i class="fas fa-copy"></i> Copy</button>
+            <button class="btn btn-primary btn-full" id="invite-share"><i class="fas fa-share-alt"></i> Share</button>
+        </div>
+    </div>
+</section>
+
+</main>
+
+<!-- ══ BOTTOM NAV ══ -->
+<nav class="bottom-nav">
+    <div class="b-nav-item active" data-target="#sec-tasks"><i class="fas fa-clipboard-check"></i><span>Tasks</span></div>
+    <div class="b-nav-item" data-target="#sec-egg"><i>🥚</i><span>Hatch</span></div>
+    <div class="b-nav-item" data-target="#sec-refer"><i class="fas fa-users"></i><span>Refer</span></div>
+</nav>
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- WITHDRAW MODAL -->
+<div class="modal-bg" id="modal-withdraw">
+    <div class="modal-box">
+        <i class="fas fa-wallet" style="font-size:2.2rem;color:#a78bfa;margin-bottom:8px;display:block;"></i>
+        <div class="modal-title">Withdraw</div>
+        <div id="wd-eligibility-info" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:10px 12px;font-size:0.73rem;color:#c4b5fd;margin-bottom:12px;text-align:left;line-height:1.6;">
+            <b>Requirements:</b><br>
+            ✅ Min 10 tasks completed<br>
+            ✅ Min 10 tasks for eligibility<br>
+            ✅ Max 1 withdrawal per day
+        </div>
+        <div style="font-family:var(--mono);font-size:1.5rem;font-weight:800;color:#a78bfa;margin-bottom:14px;" id="wd-balance">0 Edg</div>
+
+        <!-- Method tabs -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:16px;">
+            <div class="wd-method-tab active" data-method="tonkeeper" style="padding:10px 6px;border-radius:13px;border:1.5px solid #7c3aed;background:rgba(124,58,237,0.15);text-align:center;cursor:pointer;transition:0.2s;">
+                <div style="font-size:1.4rem;margin-bottom:3px;">💎</div>
+                <div style="font-weight:800;font-size:0.75rem;color:#e2e8f0;">TON</div>
+                <div style="font-size:0.62rem;color:#94a3b8;">Min 300 Edg</div>
+            </div>
+            <div class="wd-method-tab" data-method="binance" style="padding:10px 6px;border-radius:13px;border:1.5px solid #3d3060;background:#1a1530;text-align:center;cursor:pointer;transition:0.2s;">
+                <div style="font-size:1.4rem;margin-bottom:3px;">💵</div>
+                <div style="font-weight:800;font-size:0.75rem;color:#e2e8f0;">USDT</div>
+                <div style="font-size:0.62rem;color:#94a3b8;">Min 1000 Edg</div>
+            </div>
+        </div>
+
+        <div id="wd-tonkeeper-fields">
+            <label style="font-size:0.75rem;font-weight:700;color:#cbd5e1;display:block;margin-bottom:5px;">TON Wallet Address</label>
+            <input type="text" class="input-field" id="wd-address-ton" placeholder="UQ... or EQ... wallet address">
+            <label style="font-size:0.75rem;font-weight:700;color:#cbd5e1;display:block;margin-bottom:5px;">Edg Amount <span style="color:#94a3b8;">(Min 300)</span></label>
+            <input type="number" class="input-field" id="wd-amount-ton" placeholder="e.g. 300" min="300">
+        </div>
+        <div id="wd-binance-fields" style="display:none;">
+            <label style="font-size:0.75rem;font-weight:700;color:#cbd5e1;display:block;margin-bottom:5px;">Binance UID</label>
+            <input type="text" class="input-field" id="wd-address-bnb" placeholder="Your Binance UID (numbers only)">
+            <label style="font-size:0.75rem;font-weight:700;color:#cbd5e1;display:block;margin-bottom:5px;">Edg Amount <span style="color:#94a3b8;">(Min 1000)</span></label>
+            <input type="number" class="input-field" id="wd-amount-bnb" placeholder="e.g. 1000" min="1000">
+        </div>
+
+        <div id="wd-preview" style="background:rgba(139,92,246,0.1);border-radius:11px;padding:10px 13px;font-size:0.82rem;color:#cbd5e1;margin-bottom:14px;display:none;"></div>
+
+        <div style="background:rgba(16,185,129,0.08);border:1.5px solid rgba(16,185,129,0.3);border-radius:12px;padding:10px 14px;margin-bottom:14px;">
+            <div style="font-size:0.7rem;font-weight:800;color:#4ade80;margin-bottom:6px;text-align:center;">💱 Exchange Rates</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;text-align:center;">
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 4px;border:1px solid rgba(16,185,129,0.2);">
+                    <div style="font-size:0.62rem;color:#94a3b8;margin-bottom:2px;">TON</div>
+                    <div style="font-weight:800;font-size:0.72rem;color:#4ade80;">10K Edg = 0.5 TON</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 4px;border:1px solid rgba(16,185,129,0.2);">
+                    <div style="font-size:0.62rem;color:#94a3b8;margin-bottom:2px;">USDT</div>
+                    <div style="font-weight:800;font-size:0.72rem;color:#4ade80;">10K Edg = $1 USDT</div>
+                </div>
+            </div>
+            <div style="font-size:0.65rem;color:#94a3b8;text-align:center;margin-top:6px;">⏱️ Processing: 1–24 hours · Max 1/day</div>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <button class="btn btn-outline btn-full close-modal">Cancel</button>
+            <button class="btn btn-primary btn-full" id="wd-submit"><i class="fas fa-paper-plane"></i> Withdraw</button>
+        </div>
+    </div>
+</div>
+
+<!-- PROMO CODE MODAL -->
+<div class="modal-bg" id="modal-promo">
+    <div class="modal-box">
+        <i class="fas fa-ticket-alt" style="font-size:2.2rem;color:var(--gold);margin-bottom:12px;display:block;"></i>
+        <div class="modal-title">Promo Code</div>
+        <div class="modal-sub">Enter promo code for bonus Edg.</div>
+        <input type="text" class="input-field" id="promo-input" placeholder="Enter promo code" style="text-transform:uppercase;">
+        <button class="btn btn-gold btn-full" id="promo-submit" style="margin-bottom:10px;">🎁 Redeem Now</button>
+        <button class="btn btn-outline btn-full close-modal">Close</button>
+    </div>
+</div>
+
+<!-- HISTORY MODAL -->
+<div class="modal-bg" id="modal-history">
+    <div class="modal-box">
+        <i class="fas fa-history" style="font-size:2rem;color:#a78bfa;margin-bottom:8px;display:block;"></i>
+        <div class="modal-title">Withdraw History</div>
+        <div id="history-list" style="margin:14px 0;max-height:350px;overflow-y:auto;text-align:left;"></div>
+        <button class="btn btn-outline btn-full close-modal">Close</button>
+    </div>
+</div>
+
+<!-- REFER MODAL (from header refer button / inline) -->
+<div class="modal-bg" id="modal-refer">
+    <div class="modal-box">
+        <i class="fas fa-users" style="font-size:2.2rem;color:#a78bfa;margin-bottom:12px;display:block;"></i>
+        <div class="modal-title">Refer & Earn</div>
+        <div class="refer-stat-grid" style="margin-bottom:16px;">
+            <div class="refer-stat-box"><div class="refer-stat-val" id="ref-total-m">0</div><div class="refer-stat-label">Total Refs</div></div>
+            <div class="refer-stat-box"><div class="refer-stat-val" id="ref-valid-m">0</div><div class="refer-stat-label">Valid Refs</div></div>
+            <div class="refer-stat-box"><div class="refer-stat-val" id="ref-earned-m">0</div><div class="refer-stat-label">Edg Earned</div></div>
+        </div>
+        <div class="info-box" style="margin-bottom:14px;background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3);">
+            🎁 Refer reward: <b style="color:#4ade80;">+10 Edg</b> per valid referral<br>
+            ✅ Valid when friend completes <b>10 tasks</b>
+        </div>
+        <input type="text" class="input-field" id="invite-link-m" readonly>
+        <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline btn-full" id="invite-copy-m"><i class="fas fa-copy"></i> Copy</button>
+            <button class="btn btn-primary btn-full" id="invite-share-m"><i class="fas fa-share-alt"></i> Share</button>
+        </div>
+        <div style="margin-top:10px;"><button class="btn btn-outline btn-full close-modal">Close</button></div>
+    </div>
+</div>
+
+<!-- CREATE TASK MODAL -->
+<div class="modal-bg" id="modal-create-task">
+    <div class="modal-box">
+        <!-- Step 1: Choose type -->
+        <div id="ct-step-type">
+            <div class="modal-title" style="margin-bottom:16px;">📢 Create a Task</div>
+            <div class="task-type-grid">
+                <div class="task-type-btn" data-type="telegram_channel">
+                    <i class="fab fa-telegram-plane"></i><span>TG Channel</span>
+                </div>
+                <div class="task-type-btn" data-type="telegram_group">
+                    <i class="fas fa-users"></i><span>TG Group</span>
+                </div>
+                <div class="task-type-btn" data-type="telegram_bot">
+                    <i class="fas fa-robot"></i><span>TG Bot</span>
+                </div>
+                <div class="task-type-btn" data-type="social">
+                    <i class="fas fa-play-circle"></i><span>YT/FB/TikTok</span>
+                </div>
+            </div>
+            <button class="btn btn-outline btn-full close-modal">Cancel</button>
+        </div>
+        <!-- Step 2: Package -->
+        <div id="ct-step-package" style="display:none;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <button id="ct-back-to-type" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text-muted);">←</button>
+                <div class="modal-title" style="margin:0;">Choose Package</div>
+            </div>
+            <div style="background:rgba(139,92,246,0.1);border:1.5px solid rgba(139,92,246,0.3);border-radius:11px;padding:10px 13px;font-size:0.8rem;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+                <span>TON Balance</span>
+                <b id="ct-balance" style="color:#a78bfa;">0 TON</b>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Each user earns 1 Edg per completion</div>
+            <div id="ct-package-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+            <button class="btn btn-primary btn-full" id="ct-to-details-btn" disabled style="opacity:0.45;">
+                <i class="fas fa-arrow-right"></i> Continue
+            </button>
+            <button class="btn btn-outline btn-full close-modal" style="margin-top:8px;">Cancel</button>
+        </div>
+        <!-- Step 3: Details -->
+        <div id="ct-step-details" style="display:none;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <button id="ct-back-to-pkg" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text-muted);">←</button>
+                <div class="modal-title" style="margin:0;">Task Details</div>
+            </div>
+            <div id="ct-selected-pkg-preview" style="background:rgba(16,185,129,0.08);border:1.5px solid rgba(16,185,129,0.3);border-radius:11px;padding:10px 13px;font-size:0.82rem;margin-bottom:12px;color:#4ade80;"></div>
+            <input type="text" class="input-field" id="ct-title" placeholder="Task title (e.g. Join My Channel)">
+            <input type="url" class="input-field" id="ct-url" placeholder="Link / URL (https://...)">
+            <input type="text" id="ct-channel-id" class="input-field" placeholder="@username" style="display:none;">
+            <button class="btn btn-primary btn-full" id="ct-to-review-btn"><i class="fas fa-eye"></i> Review & Confirm</button>
+            <button class="btn btn-outline btn-full close-modal" style="margin-top:8px;">Cancel</button>
+        </div>
+        <!-- Step 4: Review -->
+        <div id="ct-step-review" style="display:none;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <button id="ct-back-to-details" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text-muted);">←</button>
+                <div class="modal-title" style="margin:0;">Review & Confirm</div>
+            </div>
+            <div id="ct-review-summary" style="background:var(--bg-section);border:1.5px solid var(--border-mid);border-radius:14px;padding:14px;margin-bottom:14px;font-size:0.82rem;line-height:1.8;text-align:left;"></div>
+            <label style="display:flex;align-items:flex-start;gap:10px;font-size:0.78rem;color:var(--text-sub);margin-bottom:14px;cursor:pointer;">
+                <input type="checkbox" id="ct-confirm-check" style="margin-top:3px;width:16px;height:16px;flex-shrink:0;">
+                <span>I confirm all details are correct. TON will be deducted and task goes live after admin approval.</span>
+            </label>
+            <button class="btn btn-primary btn-full" id="ct-submit-btn" disabled style="opacity:0.45;">
+                <i class="fas fa-paper-plane"></i> Pay & Create Task
+            </button>
+            <button class="btn btn-outline btn-full close-modal" style="margin-top:8px;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- DEPOSIT MODAL -->
+<div class="modal-bg" id="modal-deposit">
+    <div class="modal-box">
+        <i class="fas fa-coins" style="font-size:2.2rem;color:var(--gold);margin-bottom:10px;display:block;"></i>
+        <div class="modal-title">Deposit TON</div>
+        <div class="modal-sub" id="dep-modal-sub">Select package to deposit</div>
+        <div id="dep-warning-banner" style="display:none;border-radius:12px;padding:10px 14px;font-size:0.75rem;font-weight:700;margin-bottom:10px;text-align:center;line-height:1.5;"></div>
+        <div style="background:#1a1200;border:1.5px solid #3d2800;border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#fbbf24;margin-bottom:12px;text-align:left;">
+            ⚠️ <b>Important:</b> Fake or duplicate deposit requests = permanent ban.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+            <div style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-bottom:2px;">Select deposit package</div>
+            <div class="dep-pkg-btn" data-ton="0.25" data-tasks="250" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:2px solid var(--border-mid);border-radius:12px;cursor:pointer;">
+                <div><div style="font-weight:700;font-size:0.85rem;">250 Tasks</div><div style="font-size:0.7rem;color:var(--text-muted);">0.25 TON</div></div>
+                <span style="background:#1a2e1a;color:#4ade80;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;">40% OFF</span>
+            </div>
+            <div class="dep-pkg-btn" data-ton="0.5" data-tasks="500" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:2px solid var(--border-mid);border-radius:12px;cursor:pointer;">
+                <div><div style="font-weight:700;font-size:0.85rem;">500 Tasks</div><div style="font-size:0.7rem;color:var(--text-muted);">0.5 TON</div></div>
+                <span style="background:#1a2e1a;color:#4ade80;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;">40% OFF</span>
+            </div>
+            <div class="dep-pkg-btn active" data-ton="1.0" data-tasks="1000" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:2px solid #7c3aed;border-radius:12px;cursor:pointer;background:#1e1535;">
+                <div><div style="font-weight:700;font-size:0.85rem;">1K Tasks <span style="background:#7c3aed;color:#fff;font-size:0.6rem;padding:2px 6px;border-radius:8px;margin-left:4px;">POPULAR</span></div><div style="font-size:0.7rem;color:var(--text-muted);">1.0 TON</div></div>
+                <span style="background:#1a2e1a;color:#4ade80;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;">40% OFF</span>
+            </div>
+            <div class="dep-pkg-btn" data-ton="2.0" data-tasks="2000" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:2px solid var(--border-mid);border-radius:12px;cursor:pointer;">
+                <div><div style="font-weight:700;font-size:0.85rem;">2K Tasks</div><div style="font-size:0.7rem;color:var(--text-muted);">2.0 TON</div></div>
+                <span style="background:#1a2e1a;color:#4ade80;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;">40% OFF</span>
+            </div>
+            <div class="dep-pkg-btn" data-ton="5.0" data-tasks="5000" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:2px solid var(--border-mid);border-radius:12px;cursor:pointer;">
+                <div><div style="font-weight:700;font-size:0.85rem;">5K Tasks</div><div style="font-size:0.7rem;color:var(--text-muted);">5.0 TON</div></div>
+                <span style="background:#1a2e1a;color:#4ade80;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;">40% OFF</span>
+            </div>
+        </div>
+        <div id="dep-wallet-status" style="font-size:0.8rem;margin-bottom:10px;padding:10px;background:var(--bg-section);border-radius:10px;text-align:center;"></div>
+        <button class="btn btn-primary btn-full" id="dep-send-btn" style="margin-bottom:10px;display:none;"><i class="fas fa-bolt"></i> Send TON Directly</button>
+        <div class="info-box">
+            📋 Send to our wallet via Tonkeeper<br>
+            🔑 <b>Your Memo/Comment:</b>
+            <div style="font-family:var(--mono);font-size:1rem;font-weight:800;color:#a78bfa;margin-top:5px;word-break:break-all;" id="dep-memo-display">...</div>
+        </div>
+        <div style="background:#1a1200;border:1.5px solid #3d2800;border-radius:10px;padding:10px;font-size:0.76rem;color:#fbbf24;margin-bottom:10px;">
+            ⚠️ Memo must match exactly — without it deposit cannot be processed.
+        </div>
+        <button class="btn btn-gold btn-full" id="dep-open-tonkeeper" style="margin-bottom:10px;"><i class="fas fa-external-link-alt"></i> Open Tonkeeper</button>
+        <button class="btn btn-green btn-full" id="dep-confirm-btn"><i class="fas fa-check-circle"></i> I've Sent — Confirm</button>
+        <div style="margin-top:10px;"><button class="btn btn-outline btn-full close-modal">Cancel</button></div>
+    </div>
+</div>
+
+<!-- TUTORIAL MODAL (first open) -->
+<div class="modal-bg" id="modal-tutorial">
+    <div class="modal-box" style="text-align:left;">
+        <div style="text-align:center;margin-bottom:16px;">
+            <div style="font-size:2.5rem;margin-bottom:6px;">🥚</div>
+            <div style="font-size:1.15rem;font-weight:800;color:#e2e8f0;">Welcome to Ton Edge!</div>
+            <div style="font-size:0.78rem;color:#94a3b8;margin-top:3px;">How everything works — read once!</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:0.82rem;color:#cbd5e1;line-height:1.7;margin-bottom:18px;">
+            <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:12px;padding:12px;">
+                <b style="color:#a78bfa;">📋 Tasks</b><br>Complete tasks → earn Edg. Tap GO → Join → VERIFY → get Edg.
+            </div>
+            <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:12px;">
+                <b style="color:#fbbf24;">🥚 Egg Hatch</b><br>Hatch an egg every 4 hours to earn 30–50 Edg. Rare eggs give more!
+            </div>
+            <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:12px;">
+                <b style="color:#4ade80;">💸 Withdraw</b><br>Min 10 tasks completed. 10K Edg = 0.5 TON or $1 USDT.
+            </div>
+            <div style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:12px;">
+                <b style="color:#c4b5fd;">👥 Refer</b><br>Earn +10 Edg when friends complete 10 tasks.
+            </div>
+        </div>
+        <button class="btn btn-primary btn-full" id="btn-tutorial-close">🚀 Let's Start!</button>
+    </div>
+</div>
+
+<!-- ALERT MODAL -->
+<div class="modal-bg" id="alert-modal">
+    <div class="modal-box" style="padding:28px 20px;">
+        <div class="alert-icon-wrap" id="alert-icon">ℹ️</div>
+        <div class="modal-title" id="alert-title"></div>
+        <div style="font-size:0.83rem;color:#94a3b8;margin:8px 0 20px;line-height:1.6;" id="alert-msg"></div>
+        <button class="btn btn-primary btn-full" id="alert-ok">OK</button>
+    </div>
+</div>
+
+<!-- TASK VERIFY MODAL -->
+<div class="modal-bg" id="modal-task-verify">
+    <div class="modal-box">
+        <div style="font-size:2rem;margin-bottom:8px;">⏳</div>
+        <div class="modal-title" id="verify-task-title">Verify Task</div>
+        <div style="font-size:0.82rem;color:#94a3b8;margin-bottom:16px;" id="verify-task-sub">Click the button below after joining.</div>
+        <button class="btn btn-primary btn-full" id="btn-verify-task" style="margin-bottom:10px;">
+            <i class="fas fa-check-circle"></i> I've Joined — Verify
+        </button>
+        <button class="btn btn-outline btn-full close-modal">Cancel</button>
+        <div id="verify-task-error" style="font-size:0.78rem;color:#f87171;margin-top:10px;min-height:20px;text-align:center;"></div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════ -->
+<!--         FIREBASE + APP JS     -->
+<!-- ══════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, arrayUnion, collection, getDocs, query, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+// ── NEW FIREBASE CONFIG (Ton Edge) ──
+const firebaseConfig = {
+    apiKey: "AIzaSyDv1HP1PDuDRSrZxXF7MoXSBEclIonrxXo",
+    authDomain: "ton-edge-play.firebaseapp.com",
+    projectId: "ton-edge-play",
+    storageBucket: "ton-edge-play.firebasestorage.app",
+    messagingSenderId: "1009961528939",
+    appId: "1:1009961528939:web:268969427e8b68d35f4b2e",
+    measurementId: "G-K84PSC93L2"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const tg = window.Telegram.WebApp;
+
+// ── API BASE ── (change to your new Vercel deployment URL)
+const API_BASE = "https://ton-edge.vercel.app/api";
+
+// ── DEPOSIT WALLET ── (change to your TON wallet)
+const DEPOSIT_WALLET = "UQBPuFaTHpooYMbMS2oQ1UMLFGemDZvxs8Zmenl4FR3AF4y8";
+
+// ── CONSTANTS ──
+const EDG_TO_TON  = 0.00005;  // 10,000 Edg = 0.5 TON
+const EDG_TO_USD  = 0.0001;   // 10,000 Edg = $1 USDT
+const TASK_REWARD = 10;        // Edg per task
+const REFER_REWARD = 10;       // Edg per valid referral
+const REFER_VALID_TASKS = 10;
+const MIN_WITHDRAW_TON  = 300;
+const MIN_WITHDRAW_USDT = 1000;
+const WITHDRAW_MIN_TASKS = 10;
+
+const EGG_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours
+const EGG_REWARDS = [
+    { label: '🥚 Common',  edg: 30, emoji: '🥚', weight: 50 },
+    { label: '🐣 Rare',    edg: 40, emoji: '🐣', weight: 35 },
+    { label: '🐉 Epic',    edg: 50, emoji: '🐉', weight: 15 },
+];
+
+const TASK_PACKAGES = [
+    { tasks: 250,  ton: 0.25, label: '250 Tasks',  popular: false },
+    { tasks: 500,  ton: 0.5,  label: '500 Tasks',  popular: false },
+    { tasks: 1000, ton: 1.0,  label: '1K Tasks',   popular: true  },
+    { tasks: 2000, ton: 2.0,  label: '2K Tasks',   popular: false },
+    { tasks: 5000, ton: 5.0,  label: '5K Tasks',   popular: false },
+];
+
+let currentUser = null;
+let isSubmitting = false;
+let selectedPackage = null;
+let selectedTaskType = null;
+let selectedDepositTon = 1.0;
+let pendingVerifyTask = null;
+let tonConnectUI = null;
+let connectedWallet = null;
+
+// ── HELPERS ──
+function getToday(){ return new Date().toISOString().slice(0,10); }
+
+function showAlert(title, msg, type='info'){
+    const icons = { success:'✅', error:'❌', info:'ℹ️', warning:'⚠️' };
+    document.getElementById('alert-icon').innerText = icons[type]||'ℹ️';
+    document.getElementById('alert-title').innerText = title;
+    document.getElementById('alert-msg').innerText = msg;
+    document.getElementById('alert-modal').classList.add('show');
+}
+document.getElementById('alert-ok').addEventListener('click',()=>{ document.getElementById('alert-modal').classList.remove('show'); });
+
+function hideSplash(){
+    const s = document.getElementById('splash-screen');
+    if(!s || s.style.display==='none') return;
+    s.style.opacity='0';
+    setTimeout(()=>{ s.style.display='none'; }, 420);
+}
+
+// ── TON CONNECT ──
+async function initTonConnect(){
+    try{
+        tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+            manifestUrl: 'https://raw.githubusercontent.com/YOUR_GITHUB/ton-edge/main/tonconnect-manifest.json',
+            buttonRootId: null
+        });
+        tonConnectUI.onStatusChange(w=>{ connectedWallet=w; });
+    }catch(e){ console.warn('[TONConnect]',e); }
+}
+
+// ── INIT APP ──
+async function initApp(){
+    tg.expand?.();
+    const u = tg?.initDataUnsafe?.user;
+    if(!u?.id){ hideSplash(); showAlert('Error','Open this app via Telegram.','error'); return; }
+    const uid = String(u.id);
+    const sp = tg?.initDataUnsafe?.start_param || null;
+
+    // Session cache (5 min)
+    try{
+        const cached = localStorage.getItem(`te_u_${uid}`);
+        const cachedTime = parseInt(localStorage.getItem(`te_t_${uid}`)||0);
+        if(cached && (Date.now()-cachedTime)<5*60*1000){
+            currentUser = { id:uid, ...JSON.parse(cached) };
+            updateUI(); fetchTasks('all');
+        }
+    }catch(e){}
+
+    let apiData = null;
+    try{
+        const res = await fetch(`${API_BASE}/init`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                userId: uid,
+                firstName: u.first_name||'',
+                lastName: u.last_name||'',
+                username: u.username||'',
+                referrerCode: (sp && sp!==uid) ? sp : null,
+            })
+        });
+        apiData = await res.json();
+    }catch(e){ console.warn('[initApp]',e.message); }
+
+    if(apiData?.blocked){
+        document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;font-family:Outfit,sans-serif;background:#07060f;"><div style="font-size:4rem;">🚫</div><h2 style="color:#f87171;margin-top:16px;">Account Blocked</h2><p style="color:#64748b;margin-top:8px;">Multiple accounts not allowed.</p></div>';
+        return;
+    }
+
+    if(apiData?.user){
+        currentUser = { id:uid, ...apiData.user };
+        try{
+            const tc={...currentUser};
+            localStorage.setItem(`te_u_${uid}`,JSON.stringify(tc));
+            localStorage.setItem(`te_t_${uid}`,String(Date.now()));
+        }catch(e){}
+    } else if(!currentUser) {
+        currentUser = {
+            id:uid, edgBalance:0, tonBalance:0,
+            completedTasks:[], totalInvites:0, validReferrals:0, referralEdgEarned:0,
+            telegramUsername:u.username||'', firstName:u.first_name||'',
+            lastEggHatch:0, totalEggHatches:0, eggEdgEarned:0,
+            isBanned:false, joinDate:getToday()
+        };
+    }
+
+    if(currentUser.isBanned){
+        document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;font-family:Outfit,sans-serif;background:#07060f;"><div style="font-size:4rem;">🚫</div><h2 style="color:#f87171;margin-top:16px;">Account Banned</h2></div>';
+        return;
+    }
+
+    // Show tutorial for new users
+    if(apiData?.isNew || apiData?.justCreated){
+        const seenKey = `te_tut_${uid}`;
+        if(!localStorage.getItem(seenKey)){
+            setTimeout(()=>{ document.getElementById('modal-tutorial').classList.add('show'); }, 700);
+        }
+    }
+
+    updateUI();
+    fetchTasks('all');
+    updateEggUI();
+}
+
+// ── UPDATE UI ──
+function updateUI(){
+    hideSplash();
+    if(!currentUser) return;
+    const edg = parseFloat(currentUser.edgBalance||0);
+    const ton  = parseFloat(currentUser.tonBalance||0);
+
+    // Name
+    try{ document.getElementById('user-name-display').innerText = currentUser.firstName || 'User'; }catch(e){}
+    try{
+        const uidSpan = document.querySelector('#uid-display span');
+        if(uidSpan) uidSpan.innerText = currentUser.id;
+    }catch(e){}
+
+    // Balance
+    try{ document.getElementById('bal-edg').innerText = Math.floor(edg).toLocaleString(); }catch(e){}
+    try{ document.getElementById('bal-usdt-val').innerText = `≈ $${(edg*EDG_TO_USD).toFixed(4)} USDT`; }catch(e){}
+    try{ document.getElementById('tasks-done-count').innerText = (currentUser.completedTasks||[]).length; }catch(e){}
+    try{ document.getElementById('bal-ton-val').innerText = (edg*EDG_TO_TON).toFixed(4); }catch(e){}
+    try{ document.getElementById('wd-balance').innerText = `${Math.floor(edg)} Edg`; }catch(e){}
+    try{ document.getElementById('ct-balance').innerText = `${ton.toFixed(4)} TON`; }catch(e){}
+
+    // Refer
+    const link = `https://t.me/TonEdge_play_bot/play?startapp=${currentUser.id}`;
+    try{ document.getElementById('invite-link').value = link; }catch(e){}
+    try{ document.getElementById('invite-link-m').value = link; }catch(e){}
+    try{ document.getElementById('ref-total').innerText  = currentUser.totalInvites||0; }catch(e){}
+    try{ document.getElementById('ref-valid').innerText  = currentUser.validReferrals||0; }catch(e){}
+    try{ document.getElementById('ref-earned').innerText = currentUser.referralEdgEarned||0; }catch(e){}
+    try{ document.getElementById('ref-total-m').innerText  = currentUser.totalInvites||0; }catch(e){}
+    try{ document.getElementById('ref-valid-m').innerText  = currentUser.validReferrals||0; }catch(e){}
+    try{ document.getElementById('ref-earned-m').innerText = currentUser.referralEdgEarned||0; }catch(e){}
+
+    // Egg stats
+    try{ document.getElementById('egg-total-hatches').innerText = currentUser.totalEggHatches||0; }catch(e){}
+    try{ document.getElementById('egg-total-earned').innerText  = currentUser.eggEdgEarned||0; }catch(e){}
+}
+
+// ── TASKS ──
+let taskFilter = 'all';
+let _tasksCache = null, _tasksCacheTime = 0;
+const TASKS_CACHE_TTL = 5*60*1000;
+
+function _renderTasks(tasks, filter, container){
+    container.innerHTML='';
+    let count=0;
+    const iconMap={telegram_channel:'fab fa-telegram-plane',telegram_group:'fas fa-users',telegram_bot:'fas fa-robot',social:'fas fa-play-circle'};
+    tasks.forEach(t=>{
+        if((currentUser.completedTasks||[]).includes(t.id)) return;
+        if(filter!=='all' && t.category!==filter) return;
+        count++;
+        const cat=t.category||'social';
+        const reward=t.rewardEdg||TASK_REWARD;
+        container.innerHTML+=`<div class="task-card"><div class="t-icon"><i class="${iconMap[cat]||'fas fa-tasks'}"></i></div><div class="t-info"><div class="t-name">${t.title}</div><div class="t-reward">+${reward} Edg</div></div><button class="btn btn-outline t-task-btn" data-id="${t.id}" data-url="${t.url||''}" data-channel="${t.channelId||''}" data-cat="${cat}" style="padding:8px 15px;font-size:0.78rem;flex-shrink:0;">GO</button></div>`;
+    });
+    if(!count) container.innerHTML='<div class="empty-state"><i class="fas fa-clipboard-check"></i><p>No tasks available.</p></div>';
+    // Attach GO listeners
+    container.querySelectorAll('.t-task-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>handleTaskGo(btn));
+    });
+}
+
+async function fetchTasks(filter, forceRefresh){
+    taskFilter=filter;
+    const container=document.getElementById('task-list-container');
+    if(filter==='my_tasks'){ await fetchMyTasks(container); return; }
+    container.innerHTML='<div style="text-align:center;padding:30px 0;"><div class="loader-spin"></div></div>';
+    try{
+        const now=Date.now();
+        if(!forceRefresh && _tasksCache && (now-_tasksCacheTime)<TASKS_CACHE_TTL){
+            _renderTasks(_tasksCache, filter, container); return;
+        }
+        const res=await fetch(`${API_BASE}/getTasks`);
+        const data=await res.json();
+        _tasksCache=data.tasks||[];
+        _tasksCacheTime=Date.now();
+        _renderTasks(_tasksCache, filter, container);
+    }catch(e){
+        container.innerHTML='<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error loading tasks.</p></div>';
+    }
+}
+
+async function fetchMyTasks(container){
+    container.innerHTML='<div style="text-align:center;padding:30px 0;"><div class="loader-spin"></div></div>';
+    try{
+        const res=await fetch(`${API_BASE}/getTasks?createdBy=${currentUser.id}`);
+        const data=await res.json();
+        const myTasks=data.tasks||[];
+        if(!myTasks.length){ container.innerHTML='<div class="empty-state"><i class="fas fa-plus-circle"></i><p>No tasks created yet.</p></div>'; return; }
+        container.innerHTML=myTasks.map(t=>`
+            <div class="task-card" style="flex-wrap:wrap;gap:8px;">
+                <div class="t-info" style="flex:1;">
+                    <div class="t-name">${t.title}</div>
+                    <div class="t-reward">${t.completions||0}/${t.maxCompletions||0} completions</div>
+                    <div style="margin-top:4px;">
+                        <span class="status-badge status-${(t.status==='active')?'success':'pending'}">${t.status||'pending'}</span>
+                    </div>
+                </div>
+            </div>`).join('');
+    }catch(e){
+        container.innerHTML='<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error loading.</p></div>';
+    }
+}
+
+// Filter pills
+document.querySelectorAll('.platform-pill').forEach(pill=>{
+    pill.addEventListener('click',()=>{
+        document.querySelectorAll('.platform-pill').forEach(p=>p.classList.remove('active'));
+        pill.classList.add('active');
+        fetchTasks(pill.dataset.filter);
+    });
+});
+
+// ── TASK GO / VERIFY ──
+function handleTaskGo(btn){
+    const taskId=btn.dataset.id, url=btn.dataset.url, cat=btn.dataset.cat;
+    pendingVerifyTask={ id:taskId, channelId:btn.dataset.channel, cat };
+
+    if(url) tg.openLink ? tg.openLink(url) : window.open(url,'_blank');
+
+    document.getElementById('verify-task-title').innerText='Verify Task';
+    document.getElementById('verify-task-sub').innerText='After joining, tap Verify below.';
+    document.getElementById('verify-task-error').innerText='';
+    document.getElementById('modal-task-verify').classList.add('show');
+}
+
+document.getElementById('btn-verify-task').addEventListener('click', async()=>{
+    if(!pendingVerifyTask) return;
+    const btn=document.getElementById('btn-verify-task');
+    const errEl=document.getElementById('verify-task-error');
+    btn.disabled=true; btn.innerHTML='<div class="loader-spin" style="margin:0;width:16px;height:16px;border-width:2px;"></div>';
+    errEl.innerText='';
+
+    try{
+        const res=await fetch(`${API_BASE}/claimTask`,{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                userId: currentUser.id,
+                taskId: pendingVerifyTask.id,
+                channelId: pendingVerifyTask.channelId||'',
+            })
+        });
+        const data=await res.json();
+        if(data.success){
+            currentUser.edgBalance=(currentUser.edgBalance||0)+(data.reward||TASK_REWARD);
+            currentUser.completedTasks=[...(currentUser.completedTasks||[]),pendingVerifyTask.id];
+            try{ localStorage.removeItem(`te_u_${currentUser.id}`); localStorage.removeItem(`te_t_${currentUser.id}`); }catch(e){}
+            updateUI(); fetchTasks(taskFilter, true);
+            document.getElementById('modal-task-verify').classList.remove('show');
+            showAlert('✅ Task Done!',`+${data.reward||TASK_REWARD} Edg added to your balance!`,'success');
+            pendingVerifyTask=null;
+        } else {
+            errEl.innerText='❌ '+(data.error||'Verification failed. Make sure you joined.');
+        }
+    }catch(e){ errEl.innerText='❌ Server error. Try again.'; }
+    btn.disabled=false; btn.innerHTML='<i class="fas fa-check-circle"></i> I\'ve Joined — Verify';
+});
+
+// ── EGG HATCH SYSTEM ──
+function pickEggReward(){
+    const roll=Math.random()*100;
+    let cumulative=0;
+    for(const r of EGG_REWARDS){
+        cumulative+=r.weight;
+        if(roll<cumulative) return r;
+    }
+    return EGG_REWARDS[0];
+}
+
+function updateEggUI(){
+    if(!currentUser) return;
+    const lastHatch=currentUser.lastEggHatch||0;
+    const now=Date.now();
+    const elapsed=now-lastHatch;
+    const canHatch=elapsed>=EGG_COOLDOWN_MS;
+    const btn=document.getElementById('btn-hatch-egg');
+    const coolBanner=document.getElementById('egg-cooldown-banner');
+    const eggDisplay=document.getElementById('egg-display');
+
+    if(canHatch){
+        btn.disabled=false; btn.classList.remove('btn-disabled');
+        btn.innerHTML='🥚 Hatch Egg';
+        if(coolBanner) coolBanner.style.display='none';
+        if(eggDisplay){ eggDisplay.style.filter='drop-shadow(0 0 20px rgba(167,139,250,0.6))'; eggDisplay.innerText='🥚'; }
+    } else {
+        btn.disabled=true; btn.classList.add('btn-disabled');
+        btn.innerHTML='⏳ Cooling Down...';
+        if(coolBanner) coolBanner.style.display='block';
+        if(eggDisplay) eggDisplay.innerText='🥚';
+        // Countdown
+        const remaining=EGG_COOLDOWN_MS-elapsed;
+        updateEggCooldown(remaining);
+    }
+}
+
+let _eggTimer=null;
+function updateEggCooldown(remaining){
+    clearInterval(_eggTimer);
+    _eggTimer=setInterval(()=>{
+        remaining-=1000;
+        if(remaining<=0){ clearInterval(_eggTimer); updateEggUI(); return; }
+        const h=Math.floor(remaining/3600000);
+        const m=Math.floor((remaining%3600000)/60000);
+        const s=Math.floor((remaining%60000)/1000);
+        const el=document.getElementById('egg-cooldown-text');
+        if(el) el.innerText=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    },1000);
+}
+
+function addEggHistory(reward){
+    const container=document.getElementById('egg-history');
+    const now=new Date().toLocaleTimeString();
+    const newItem=`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(139,92,246,0.1);font-size:0.78rem;">
+        <span>${reward.emoji} ${reward.label}</span>
+        <span style="color:#4ade80;font-weight:700;">+${reward.edg} Edg</span>
+        <span style="color:#64748b;font-size:0.68rem;">${now}</span>
+    </div>`;
+    if(container.innerText.includes('No hatches')) container.innerHTML='';
+    container.insertAdjacentHTML('afterbegin', newItem);
+    // Keep last 10
+    const items=container.querySelectorAll('div');
+    if(items.length>10) items[items.length-1].remove();
+}
+
+function showEggRewardPop(reward){
+    const pop=document.createElement('div');
+    pop.className='egg-reward-pop';
+    pop.innerText=`+${reward.edg} Edg ${reward.emoji}`;
+    document.body.appendChild(pop);
+    setTimeout(()=>pop.remove(), 1600);
+}
+
+document.getElementById('btn-hatch-egg').addEventListener('click', async()=>{
+    if(!currentUser) return;
+    const elapsed=Date.now()-(currentUser.lastEggHatch||0);
+    if(elapsed<EGG_COOLDOWN_MS){ updateEggUI(); return; }
+
+    const btn=document.getElementById('btn-hatch-egg');
+    const eggDisplay=document.getElementById('egg-display');
+    btn.disabled=true; btn.innerHTML='<div class="loader-spin" style="margin:0;width:16px;height:16px;border-width:2px;"></div>';
+
+    // Crack animation
+    eggDisplay.classList.add('cracking');
+    setTimeout(()=>eggDisplay.classList.remove('cracking'), 700);
+
+    try{
+        const res=await fetch(`${API_BASE}/claimEggHatch`,{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ userId:currentUser.id })
+        });
+        const data=await res.json();
+
+        if(data.success){
+            const reward={ emoji:data.egg||'🥚', label:data.label||'Common', edg:data.edgEarned||30 };
+            currentUser.edgBalance=(currentUser.edgBalance||0)+reward.edg;
+            currentUser.lastEggHatch=Date.now();
+            currentUser.totalEggHatches=(currentUser.totalEggHatches||0)+1;
+            currentUser.eggEdgEarned=(currentUser.eggEdgEarned||0)+reward.edg;
+
+            try{ localStorage.removeItem(`te_u_${currentUser.id}`); localStorage.removeItem(`te_t_${currentUser.id}`); }catch(e){}
+
+            eggDisplay.innerText=reward.emoji;
+            document.getElementById('egg-result-text').innerText=`${reward.label} — +${reward.edg} Edg!`;
+            document.getElementById('egg-result-text').style.color='#fbbf24';
+
+            showEggRewardPop(reward);
+            addEggHistory(reward);
+            updateUI();
+            updateEggUI();
+        } else {
+            showAlert('❌ Error', data.error||'Hatch failed. Try again.','error');
+            btn.disabled=false; btn.innerHTML='🥚 Hatch Egg';
+            btn.classList.remove('btn-disabled');
+        }
+    }catch(e){
+        showAlert('Error','Server error. Try again.','error');
+        btn.disabled=false; btn.innerHTML='🥚 Hatch Egg';
+        btn.classList.remove('btn-disabled');
+    }
+});
+
+// ── PROMO CODE ──
+document.getElementById('promo-submit').addEventListener('click', async()=>{
+    const code=document.getElementById('promo-input').value.trim().toUpperCase();
+    if(!code) return showAlert('Error','Enter a promo code.','error');
+    const btn=document.getElementById('promo-submit');
+    btn.disabled=true; btn.innerHTML='<div class="loader-spin" style="margin:0;width:15px;height:15px;border-width:2px;"></div>';
+
+    try{
+        const res=await fetch(`${API_BASE}/redeemPromo`,{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ userId:currentUser.id, code })
+        });
+        const data=await res.json();
+        if(data.success){
+            currentUser.edgBalance=(currentUser.edgBalance||0)+(data.reward||0);
+            try{ localStorage.removeItem(`te_u_${currentUser.id}`); localStorage.removeItem(`te_t_${currentUser.id}`); }catch(e){}
+            updateUI();
+            document.getElementById('promo-input').value='';
+            document.getElementById('modal-promo').classList.remove('show');
+            showAlert('🎉 Claimed!',`+${data.reward} Edg added to your balance!`,'success');
+        } else {
+            showAlert('❌ Failed', data.error||'Invalid or already used.','error');
+        }
+    }catch(e){ showAlert('Error','Server error. Try again.','error'); }
+    btn.disabled=false; btn.innerHTML='🎁 Redeem Now';
+});
+
+// ── WITHDRAW ──
+let wdMethod='tonkeeper';
+
+document.querySelectorAll('.wd-method-tab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+        wdMethod=tab.dataset.method;
+        document.querySelectorAll('.wd-method-tab').forEach(t=>{
+            const active=t.dataset.method===wdMethod;
+            t.style.background=active?'rgba(124,58,237,0.15)':'#1a1530';
+            t.style.borderColor=active?'#7c3aed':'#3d3060';
+        });
+        document.getElementById('wd-tonkeeper-fields').style.display=wdMethod==='tonkeeper'?'block':'none';
+        document.getElementById('wd-binance-fields').style.display=wdMethod==='binance'?'block':'none';
+        document.getElementById('wd-preview').style.display='none';
+    });
+});
+
+function calcWdPreview(){
+    const amtEl=wdMethod==='binance'?document.getElementById('wd-amount-bnb'):document.getElementById('wd-amount-ton');
+    const minAmt=wdMethod==='binance'?MIN_WITHDRAW_USDT:MIN_WITHDRAW_TON;
+    const a=parseFloat(amtEl?.value||0);
+    const preview=document.getElementById('wd-preview');
+    if(a&&a>=minAmt){
+        preview.style.display='block';
+        if(wdMethod==='binance'){
+            preview.innerHTML=`<div style="font-size:0.75rem;color:#94a3b8;margin-bottom:3px;">10,000 Edg = $1.00 USDT</div>You receive: <b style="color:#4ade80;">$${(a*EDG_TO_USD).toFixed(3)} USDT</b>`;
+        } else {
+            preview.innerHTML=`<div style="font-size:0.75rem;color:#94a3b8;margin-bottom:3px;">10,000 Edg = 0.5 TON</div>You receive: <b style="color:#a78bfa;">${(a*EDG_TO_TON).toFixed(4)} TON</b>`;
+        }
+    } else { preview.style.display='none'; }
+}
+document.getElementById('wd-amount-ton').addEventListener('input',calcWdPreview);
+document.getElementById('wd-amount-bnb').addEventListener('input',calcWdPreview);
+
+document.getElementById('wd-submit').addEventListener('click', async()=>{
+    if(isSubmitting) return;
+    const amtElId=wdMethod==='binance'?'wd-amount-bnb':'wd-amount-ton';
+    const addrElId=wdMethod==='binance'?'wd-address-bnb':'wd-address-ton';
+    const minAmt=wdMethod==='binance'?MIN_WITHDRAW_USDT:MIN_WITHDRAW_TON;
+    const amt=parseFloat(document.getElementById(amtElId).value);
+    const addr=document.getElementById(addrElId).value.trim();
+
+    if(!addr) return showAlert('Error',`Enter your ${wdMethod==='binance'?'Binance UID':'TON wallet address'}.`,'error');
+    if(isNaN(amt)||amt<minAmt) return showAlert('Notice',`Minimum ${minAmt} Edg required.`,'error');
+    if((currentUser.edgBalance||0)<amt) return showAlert('Error','Insufficient Edg balance.','error');
+
+    const tasksDone=(currentUser.completedTasks||[]).length;
+    if(tasksDone<WITHDRAW_MIN_TASKS)
+        return showAlert('Not Eligible',`Complete at least ${WITHDRAW_MIN_TASKS} tasks first. (${tasksDone}/${WITHDRAW_MIN_TASKS})`,'error');
+
+    const today=getToday();
+    if(currentUser.lastWithdrawDate===today)
+        return showAlert('Daily Limit','You can only withdraw once per day.','error');
+
+    isSubmitting=true;
+    const btn=document.getElementById('wd-submit');
+    btn.disabled=true; btn.innerHTML='<div class="loader-spin" style="margin:0;width:15px;height:15px;border-width:2px;"></div>';
+
+    try{
+        const convertedAmt=wdMethod==='binance'
+            ? parseFloat((amt*EDG_TO_USD).toFixed(3))
+            : parseFloat((amt*EDG_TO_TON).toFixed(4));
+        const res=await fetch(`${API_BASE}/withdraw`,{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                userId:currentUser.id, username:currentUser.telegramUsername||'',
+                firstName:currentUser.firstName||'',
+                method:wdMethod, address:addr,
+                edgAmount:amt, convertedAmount:convertedAmt,
+                tasksDone
+            })
+        });
+        const data=await res.json();
+        if(data.success){
+            currentUser.edgBalance=data.newBalance??(currentUser.edgBalance-amt);
+            currentUser.lastWithdrawDate=getToday();
+            try{ localStorage.removeItem(`te_u_${currentUser.id}`); localStorage.removeItem(`te_t_${currentUser.id}`); }catch(e){}
+            updateUI();
+            document.getElementById('wd-preview').style.display='none';
+            document.getElementById('modal-withdraw').classList.remove('show');
+            showAlert('Submitted ✅',`Withdrawal of ${amt} Edg submitted. You'll get a Telegram notification once processed.`,'success');
+        } else { showAlert('Error',data.error||'Withdrawal failed.','error'); }
+    }catch(e){ showAlert('Error','Server error. Try again.','error'); }
+    finally{ isSubmitting=false; btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Withdraw'; }
+});
+
+// ── HISTORY ──
+document.getElementById('btn-history').addEventListener('click', async()=>{
+    document.getElementById('modal-history').classList.add('show');
+    const c=document.getElementById('history-list');
+    c.innerHTML='<div style="text-align:center;padding:20px;"><div class="loader-spin"></div></div>';
+    try{
+        const res=await fetch(`${API_BASE}/getHistory?userId=${currentUser.id}`);
+        const data=await res.json();
+        const list=data.history||[];
+        if(!list.length){ c.innerHTML='<div class="empty-state"><i class="fas fa-inbox"></i><p>No withdraw history yet.</p></div>'; return; }
+        c.innerHTML=list.map(d=>{
+            const statusColor=d.status==='completed'?'#4ade80':'#fbbf24';
+            const amtLabel=d.method==='binance'?`≈ $${parseFloat(d.convertedAmount||0).toFixed(2)} USDT`:`≈ ${parseFloat(d.convertedAmount||0).toFixed(4)} TON`;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1.5px solid rgba(139,92,246,0.1);font-size:0.83rem;gap:8px;">
+                <div>
+                    <div style="font-weight:700;color:#e2e8f0;">Withdraw (${d.method==='binance'?'USDT':'TON'})</div>
+                    <div style="font-size:0.7rem;color:#94a3b8;margin-top:3px;">${d.date||''} <span style="background:rgba(255,255,255,0.05);color:${statusColor};font-size:0.65rem;padding:2px 7px;border-radius:20px;">${d.status||'pending'}</span></div>
+                    <div style="font-size:0.68rem;color:#94a3b8;margin-top:1px;">${amtLabel}</div>
+                </div>
+                <div style="font-weight:800;color:#f87171;white-space:nowrap;">-${d.edgAmount||0} Edg</div>
+            </div>`;
+        }).join('');
+    }catch(e){ c.innerHTML='<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error loading.</p></div>'; }
+});
+
+// ── DEPOSIT ──
+document.querySelectorAll('.dep-pkg-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        document.querySelectorAll('.dep-pkg-btn').forEach(b=>{ b.classList.remove('active'); b.style.border='2px solid #2a2040'; b.style.background=''; });
+        btn.classList.add('active'); btn.style.border='2px solid #7c3aed'; btn.style.background='#1e1535';
+        selectedDepositTon=parseFloat(btn.dataset.ton);
+        const tasks=btn.dataset.tasks;
+        document.getElementById('dep-show-ton').innerText=selectedDepositTon;
+        document.getElementById('dep-modal-sub').innerHTML=`Package: <b>${tasks} Tasks</b> · <b>${selectedDepositTon} TON</b>`;
+    });
+});
+
+document.getElementById('dep-open-tonkeeper').addEventListener('click',()=>{
+    const url=`https://app.tonkeeper.com/transfer/${DEPOSIT_WALLET}?amount=${Math.floor(selectedDepositTon*1e9)}&text=${encodeURIComponent(currentUser.id)}`;
+    tg.openLink ? tg.openLink(url) : window.open(url,'_blank');
+});
+
+document.getElementById('dep-confirm-btn').addEventListener('click', async()=>{
+    const btn=document.getElementById('dep-confirm-btn');
+    btn.disabled=true; btn.innerHTML='<div class="loader-spin" style="margin:0;width:15px;height:15px;border-width:2px;"></div>';
+    try{
+        const res=await fetch(`${API_BASE}/notifyDeposit`,{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                userId:currentUser.id, username:currentUser.telegramUsername||'',
+                firstName:currentUser.firstName||'',
+                tonAmount:selectedDepositTon, memo:String(currentUser.id)
+            })
+        });
+        const data=await res.json();
+        document.getElementById('modal-deposit').classList.remove('show');
+        if(data.success||data.depositId){
+            currentUser._pendingDeposit=true;
+            showAlert('Submitted ⏳','Deposit submitted! Admin will verify within 1–6 hours.','success');
+        } else { showAlert('Error',data.error||'Submission failed.','error'); }
+    }catch(e){ showAlert('Error','Server error.','error'); }
+    btn.disabled=false; btn.innerHTML='<i class="fas fa-check-circle"></i> I\'ve Sent — Confirm';
+});
+
+// ── CREATE TASK ──
+function showStep(id){ ['ct-step-type','ct-step-package','ct-step-details','ct-step-review'].forEach(s=>{ document.getElementById(s).style.display='none'; }); document.getElementById(id).style.display='block'; }
+function renderPackages(){
+    const list=document.getElementById('ct-package-list'); list.innerHTML='';
+    TASK_PACKAGES.forEach(pkg=>{
+        const div=document.createElement('div');
+        div.style.cssText='padding:11px 14px;border:1.5px solid #3d3060;border-radius:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#1a1530;';
+        div.innerHTML=`<div><div style="font-weight:700;font-size:0.85rem;">${pkg.label}${pkg.popular?` <span style="background:#7c3aed;color:#fff;font-size:0.6rem;padding:2px 6px;border-radius:8px;">POPULAR</span>`:''}</div><div style="font-size:0.7rem;color:#94a3b8;">${pkg.ton} TON · ${pkg.tasks} tasks</div></div><span style="font-weight:800;color:#a78bfa;">${pkg.ton} TON</span>`;
+        div.addEventListener('click',()=>{
+            list.querySelectorAll('div').forEach(d=>{ d.style.borderColor='#3d3060'; d.style.background='#1a1530'; });
+            div.style.borderColor='#7c3aed'; div.style.background='rgba(124,58,237,0.15)';
+            selectedPackage=pkg;
+            const continueBtn=document.getElementById('ct-to-details-btn');
+            continueBtn.disabled=false; continueBtn.style.opacity='1';
+        });
+        list.appendChild(div);
+    });
+}
+
+document.getElementById('btn-create-task').addEventListener('click',()=>{
+    if((currentUser?.tonBalance||0)>0){
+        selectedPackage=null; selectedTaskType=null;
+        document.querySelectorAll('.task-type-btn').forEach(b=>b.classList.remove('active'));
+        document.getElementById('ct-to-details-btn').disabled=true; document.getElementById('ct-to-details-btn').style.opacity='0.45';
+        document.getElementById('ct-title').value=''; document.getElementById('ct-url').value=''; document.getElementById('ct-channel-id').value='';
+        showStep('ct-step-type');
+        document.getElementById('modal-create-task').classList.add('show');
+    } else {
+        showAlert('No TON Balance','Contact admin @Your_Admin11 to deposit TON first.','info');
+    }
+});
+
+document.querySelectorAll('.task-type-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        document.querySelectorAll('.task-type-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active'); selectedTaskType=btn.dataset.type;
+        const chanField=document.getElementById('ct-channel-id');
+        chanField.style.display=(selectedTaskType==='telegram_channel'||selectedTaskType==='telegram_group')?'block':'none';
+        renderPackages(); showStep('ct-step-package');
+    });
+});
+
+document.getElementById('ct-back-to-type').addEventListener('click',()=>{ selectedTaskType=null; selectedPackage=null; showStep('ct-step-type'); });
+document.getElementById('ct-to-details-btn').addEventListener('click',()=>{
+    if(!selectedPackage) return;
+    document.getElementById('ct-selected-pkg-preview').innerHTML=`📦 <b>${selectedPackage.label}</b> — ${selectedPackage.tasks} tasks — <b>${selectedPackage.ton} TON</b>`;
+    showStep('ct-step-details');
+});
+document.getElementById('ct-back-to-pkg').addEventListener('click',()=>showStep('ct-step-package'));
+document.getElementById('ct-to-review-btn').addEventListener('click',()=>{
+    const title=document.getElementById('ct-title').value.trim();
+    const url=document.getElementById('ct-url').value.trim();
+    const channelId=document.getElementById('ct-channel-id').value.trim();
+    if(!title) return showAlert('Error','Enter a task title.','error');
+    if(!url) return showAlert('Error','Enter the URL.','error');
+    if((selectedTaskType==='telegram_channel'||selectedTaskType==='telegram_group')&&!channelId)
+        return showAlert('Error','Enter the @username.','error');
+    const typeLabel={telegram_channel:'📢 TG Channel',telegram_group:'👥 TG Group',telegram_bot:'🤖 TG Bot',social:'▶️ Social'};
+    document.getElementById('ct-review-summary').innerHTML=
+        `<div style="margin-bottom:6px;font-weight:700;">Review:</div>`+
+        `<div>📋 <b>Title:</b> ${title}</div>`+
+        `<div>🔗 <b>URL:</b> <span style="word-break:break-all;font-size:0.75rem;">${url}</span></div>`+
+        (channelId?`<div>📌 <b>Username:</b> ${channelId}</div>`:'')+
+        `<div>📂 <b>Type:</b> ${typeLabel[selectedTaskType]||selectedTaskType}</div>`+
+        `<div>📦 <b>Package:</b> ${selectedPackage.label}</div>`+
+        `<div>💰 <b>Cost:</b> <span style="color:#f87171;font-weight:700;">${selectedPackage.ton} TON</span> (from your balance)</div>`;
+    document.getElementById('ct-confirm-check').checked=false;
+    document.getElementById('ct-submit-btn').disabled=true; document.getElementById('ct-submit-btn').style.opacity='0.45';
+    showStep('ct-step-review');
+});
+document.getElementById('ct-back-to-details').addEventListener('click',()=>showStep('ct-step-details'));
+document.getElementById('ct-confirm-check').addEventListener('change',e=>{
+    const btn=document.getElementById('ct-submit-btn'); btn.disabled=!e.target.checked; btn.style.opacity=e.target.checked?'1':'0.45';
+});
+document.getElementById('ct-submit-btn').addEventListener('click', async()=>{
+    if(!selectedTaskType||!selectedPackage) return;
+    const title=document.getElementById('ct-title').value.trim();
+    const url=document.getElementById('ct-url').value.trim();
+    const channelId=document.getElementById('ct-channel-id').value.trim();
+    const userTon=parseFloat(currentUser?.tonBalance||0);
+    if(userTon<selectedPackage.ton){ showAlert('Insufficient TON',`You need ${selectedPackage.ton} TON but have ${userTon.toFixed(4)} TON.`,'error'); return; }
+    const btn=document.getElementById('ct-submit-btn');
+    btn.disabled=true; btn.innerHTML='<div class="loader-spin" style="margin:0;width:15px;height:15px;border-width:2px;"></div>';
+    try{
+        await fetch(`${API_BASE}/notifyDeposit`,{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                type:'task_create', userId:currentUser.id, username:currentUser.telegramUsername||'',
+                firstName:currentUser.firstName||'', title, url, category:selectedTaskType,
+                channelId, rewardEdg:TASK_REWARD, maxCompletions:selectedPackage.tasks,
+                tonCost:selectedPackage.ton, packageLabel:selectedPackage.label
+            })
+        });
+        currentUser.tonBalance=Math.max(0,(currentUser.tonBalance||0)-selectedPackage.ton);
+        updateUI();
+        document.getElementById('modal-create-task').classList.remove('show');
+        showAlert('Task Submitted ✅',`${selectedPackage.ton} TON deducted. Task goes live within 1–6 hours.`,'success');
+    }catch(e){ showAlert('Error','Failed to create task.','error'); }
+    btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Pay & Create Task';
+});
+
+// ── MODAL TOGGLES ──
+document.getElementById('btn-withdraw').addEventListener('click',()=>{
+    const tasksDone=(currentUser.completedTasks||[]).length;
+    const today=getToday();
+    const alreadyWithdrawn=currentUser.lastWithdrawDate===today;
+    const info=document.getElementById('wd-eligibility-info');
+    if(info){
+        const t_ok=tasksDone>=WITHDRAW_MIN_TASKS;
+        const wd_ok=!alreadyWithdrawn;
+        info.innerHTML=`<b>Your Status:</b><br>`+
+            `${t_ok?'✅':'❌'} Tasks: ${tasksDone}/${WITHDRAW_MIN_TASKS}<br>`+
+            `${wd_ok?'✅':'❌'} Daily limit: ${wd_ok?'Available':'Already withdrew today'}<br>`+
+            `🥚 Min: TON 300 Edg | USDT 1000 Edg`;
+        info.style.background=t_ok&&wd_ok?'rgba(16,185,129,0.08)':'rgba(245,158,11,0.08)';
+        info.style.borderColor=t_ok&&wd_ok?'rgba(16,185,129,0.3)':'rgba(245,158,11,0.3)';
+        info.style.color=t_ok&&wd_ok?'#4ade80':'#fbbf24';
+    }
+    document.getElementById('wd-amount-ton').value='';
+    document.getElementById('wd-amount-bnb').value='';
+    document.getElementById('wd-address-ton').value='';
+    document.getElementById('wd-address-bnb').value='';
+    document.getElementById('wd-preview').style.display='none';
+    document.getElementById('modal-withdraw').classList.add('show');
+});
+document.getElementById('btn-promo').addEventListener('click',()=>document.getElementById('modal-promo').classList.add('show'));
+document.getElementById('btn-withdraw-inline').addEventListener('click',()=>document.getElementById('btn-withdraw').click());
+document.getElementById('btn-refer-inline').addEventListener('click',()=>{
+    if(currentUser){
+        document.getElementById('invite-link-m').value=`https://t.me/TonEdge_play_bot/play?startapp=${currentUser.id}`;
+        document.getElementById('ref-total-m').innerText=currentUser.totalInvites||0;
+        document.getElementById('ref-valid-m').innerText=currentUser.validReferrals||0;
+        document.getElementById('ref-earned-m').innerText=currentUser.referralEdgEarned||0;
+    }
+    document.getElementById('modal-refer').classList.add('show');
+});
+document.getElementById('uid-display').addEventListener('click',()=>{ navigator.clipboard.writeText(currentUser.id); showAlert('Copied','User ID copied.','success'); });
+document.getElementById('invite-copy').addEventListener('click',()=>{ navigator.clipboard.writeText(document.getElementById('invite-link').value); showAlert('Copied','Link copied!','success'); });
+document.getElementById('invite-copy-m').addEventListener('click',()=>{ navigator.clipboard.writeText(document.getElementById('invite-link-m').value); showAlert('Copied','Link copied!','success'); });
+document.getElementById('invite-share').addEventListener('click',()=>{
+    const l=document.getElementById('invite-link').value;
+    tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(l)}&text=${encodeURIComponent('Join Ton Edge! Earn Edg by completing tasks & hatching eggs 🥚🚀')}`);
+});
+document.getElementById('invite-share-m').addEventListener('click',()=>{
+    const l=document.getElementById('invite-link-m').value;
+    tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(l)}&text=${encodeURIComponent('Join Ton Edge! Earn Edg by completing tasks & hatching eggs 🥚🚀')}`);
+});
+
+// Close modals
+document.querySelectorAll('.close-modal').forEach(b=>b.addEventListener('click',e=>{
+    e.target.closest('.modal-bg').classList.remove('show');
+}));
+
+// Tutorial close
+document.getElementById('btn-tutorial-close').addEventListener('click',()=>{
+    document.getElementById('modal-tutorial').classList.remove('show');
+    if(currentUser) localStorage.setItem(`te_tut_${currentUser.id}`,'1');
+});
+
+// Deposit modal open via create-task no-balance flow
+document.getElementById('btn-deposit')?.addEventListener('click',()=>{
+    if(!currentUser) return;
+    document.getElementById('dep-memo-display').innerText=currentUser.id;
+    document.getElementById('modal-deposit').classList.add('show');
+});
+
+// ── NAV ──
+document.querySelectorAll('.b-nav-item').forEach(item=>{
+    item.addEventListener('click',()=>{
+        document.querySelectorAll('.b-nav-item,.content-section').forEach(e=>e.classList.remove('active'));
+        item.classList.add('active');
+        document.querySelector(item.dataset.target).classList.add('active');
+        if(item.dataset.target==='#sec-egg') updateEggUI();
+    });
+});
+
+// ── BOOT ──
+initTonConnect();
+initApp();
+setTimeout(hideSplash, 8000);
+
+</script>
+</body>
+</html>
