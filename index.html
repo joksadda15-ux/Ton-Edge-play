@@ -465,7 +465,8 @@
 </div>
 
 <script>
-const API = 'https://ton-edge.vercel.app/api';
+const API = 'https://ton-edge-play.vercel.app/api';
+const BOT_REFER_BASE = 'http://t.me/TonEdge_play_bot/playearn';
 const RATES = { egToTon: 0.5/20000, egToUsdt: 1.0/20000 };
 const FEE = 0.05;
 const MIN_WITHDRAW_EG_BINANCE = 2000;
@@ -883,7 +884,11 @@ async function loadReferData() {
         if (!data.success) return;
         document.getElementById('totalRefs').textContent = data.totalReferred;
         document.getElementById('totalRefEarned').textContent = data.totalRefEarned.toLocaleString() + ' EG';
-        document.getElementById('refLinkInput').value = data.referLink;
+        // Use backend referLink if valid, else build from correct base URL
+        const referLink = (data.referLink && data.referLink.includes('TonEdge_play_bot'))
+            ? data.referLink
+            : `${BOT_REFER_BASE}?startapp=${tgUser.id}`;
+        document.getElementById('refLinkInput').value = referLink;
         const list = document.getElementById('referredList');
         if (!data.referredUsers.length) { list.innerHTML = '<div class="text-slate-600">No referrals yet</div>'; return; }
         list.innerHTML = data.referredUsers.map((u,i) => `
