@@ -2,34 +2,32 @@ import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
 const PLANS = {
-  chicken:   { name: 'Chicken Egg',   price: 20,   adsRequired: 5,  egPerAd: 10, yield: 150,   miningHours: 4  },
-  duck:      { name: 'Duck Egg',      price: 50,   adsRequired: 8,  egPerAd: 10, yield: 400,   miningHours: 6  },
-  goose:     { name: 'Goose Egg',     price: 100,  adsRequired: 10, egPerAd: 10, yield: 900,   miningHours: 8  },
-  eagle:     { name: 'Eagle Egg',     price: 200,  adsRequired: 15, egPerAd: 10, yield: 2000,  miningHours: 12 },
-  dragon:    { name: 'Dragon Egg',    price: 500,  adsRequired: 20, egPerAd: 10, yield: 6000,  miningHours: 18 },
-  legendary: { name: 'Legendary Egg', price: 1000, adsRequired: 25, egPerAd: 10, yield: 15000, miningHours: 24 },
+  1: { name:'Bird Spirit',    cost:300,   yield:800,   miningHours:4,  ads:{ adsgram:{limit:1,reward:20}, monetag:{limit:1,reward:20}, gigapub:{limit:1,reward:20} } },
+  2: { name:'Chick Spirit',   cost:700,   yield:2000,  miningHours:6,  ads:{ adsgram:{limit:1,reward:30}, monetag:{limit:2,reward:20}, gigapub:{limit:2,reward:20} } },
+  3: { name:'Duck Spirit',    cost:1200,  yield:4500,  miningHours:8,  ads:{ adsgram:{limit:2,reward:35}, monetag:{limit:3,reward:20}, gigapub:{limit:3,reward:20} } },
+  4: { name:'Turtle Spirit',  cost:2000,  yield:10000, miningHours:12, ads:{ adsgram:{limit:3,reward:40}, monetag:{limit:4,reward:25}, gigapub:{limit:4,reward:25} } },
+  5: { name:'Serpent Spirit', cost:5000,  yield:28000, miningHours:18, ads:{ adsgram:{limit:4,reward:50}, monetag:{limit:5,reward:30}, gigapub:{limit:5,reward:30} } },
+  6: { name:'Dragon Spirit',  cost:7000,  yield:70000, miningHours:24, ads:{ adsgram:{limit:5,reward:60}, monetag:{limit:6,reward:35}, gigapub:{limit:6,reward:35} } },
 };
 
-function verify(req) {
-  const { telegramId, initData } = req.body || {};
-  if (!telegramId) return { error: 'telegramId required' };
-  if (initData) {
-    const tgUser = verifyTelegramInit(initData);
-    if (!tgUser || String(tgUser.id) !== String(telegramId)) {
-      return { error: 'Invalid Telegram session' };
-    }
-  }
-  return { tgId: String(telegramId) };
+function todayKey() {
+  return new Date().toISOString().slice(0, 10); // "2026-06-23"
 }
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge.vercel.app');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { action } = req.body;
-  const auth = verify(req);
-  if (auth.error) return res.status(400).json({ error: auth.error });
-  const { tgId } = auth;
+  const { telegramId, initData, action, planId, network } = req.body;
+  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+
+  if (initData) {
+    const tgUser = verifyTelegramInit(initData);
+    if (!tgUser || String(tgUser.id) !== String(telegramId))
+      return res.status(403).json({ error: 'Invalid Telegram session' });
+  }
+
+  const tgId = String(telegramId);
 
   try {
     const db = await getDb();
@@ -40,113 +38,84 @@ export default async function handler(req, res) {
 
     // ── action: buy ───────────────────────────────────────────────
     if (action === 'buy') {
-      const { planId } = req.body;
       const plan = PLANS[planId];
       if (!plan) return res.status(400).json({ error: 'Invalid plan' });
-
-      if (user.activePlan && user.activePlan.status !== 'done') {
-        return res.status(400).json({ error: 'You already have an active plan.' });
-      }
-
-      // Give referrer 80 EG for plan purchase
-      if (user.referredBy) {
-        await users.updateOne(
-          { telegramId: user.referredBy },
-          { $inc: { egBalance: 80, totalRefEarned: 80 } }
-        );
-      }
+      if (user.egBalance < plan.cost) return res.status(400).json({ error: 'Insufficient balance' });
 
       await users.updateOne(
         { telegramId: tgId },
         {
-          $set: {
-            activePlan: { planId, ...plan, adsWatched: 0, status: 'pending' },
-            miningFinishTime: null,
-          },
+          $inc: { egBalance: -plan.cost, [`ownedSpirits.${planId}`]: 1 },
         }
       );
-      return res.status(200).json({
-        success: true,
-        plan,
-        message: `Watch ${plan.adsRequired} ads to start mining.`,
-      });
+
+      // Give referrer 120 EG for spirit purchase
+      if (user.referredBy) {
+        await users.updateOne(
+          { telegramId: user.referredBy },
+          { $inc: { egBalance: 120, totalRefEarned: 120 } }
+        );
+      }
+
+      return res.status(200).json({ success: true, plan });
     }
 
     // ── action: ad ────────────────────────────────────────────────
     if (action === 'ad') {
-      const { adToken } = req.body;
-      // adToken should be provided by AdsGram/Monetag callback — skip check in dev
-      const plan = user.activePlan;
-      if (!plan || plan.status !== 'pending') {
-        return res.status(400).json({ error: 'No pending plan.' });
+      if (!planId || !network) return res.status(400).json({ error: 'planId and network required' });
+
+      const plan = PLANS[planId];
+      if (!plan) return res.status(400).json({ error: 'Invalid plan' });
+
+      const owned = user.ownedSpirits?.[planId] || 0;
+      if (!owned) return res.status(400).json({ error: 'Buy this spirit first' });
+
+      const networkCfg = plan.ads[network];
+      if (!networkCfg) return res.status(400).json({ error: 'Invalid network' });
+
+      const today = todayKey();
+      const todayAds = user.todayAds?.[today]?.[planId]?.[network] || 0;
+
+      if (todayAds >= networkCfg.limit) {
+        return res.status(400).json({ error: `Daily limit reached for ${network}` });
       }
 
-      const newAdsWatched = (plan.adsWatched || 0) + 1;
-      const allDone = newAdsWatched >= plan.adsRequired;
-      const newTotalAds = (user.totalAdsWatched || 0) + 1;
-
-      if (allDone) {
-        const miningFinishTime = new Date(Date.now() + plan.miningHours * 60 * 60 * 1000);
-        await users.updateOne(
-          { telegramId: tgId },
-          {
-            $set: {
-              'activePlan.adsWatched': newAdsWatched,
-              'activePlan.status': 'mining',
-              miningFinishTime,
-            },
-            $inc: { totalAdsWatched: 1 },
-          }
-        );
-
-        // Give referrer 120 EG when referred user hits 20 total ads
-        if (newTotalAds === 20 && user.referredBy) {
-          await users.updateOne(
-            { telegramId: user.referredBy },
-            { $inc: { egBalance: 120, totalRefEarned: 120 } }
-          );
-        }
-
-        return res.status(200).json({
-          success: true,
-          miningStarted: true,
-          miningFinishTime,
-          message: `Mining started! Come back in ${plan.miningHours} hours.`,
-        });
-      } else {
-        await users.updateOne(
-          { telegramId: tgId },
-          {
-            $set: { 'activePlan.adsWatched': newAdsWatched },
-            $inc: { totalAdsWatched: 1 },
-          }
-        );
-        return res.status(200).json({
-          success: true,
-          miningStarted: false,
-          adsWatched: newAdsWatched,
-          remaining: plan.adsRequired - newAdsWatched,
-        });
-      }
-    }
-
-    // ── action: claim ─────────────────────────────────────────────
-    if (action === 'claim') {
-      const plan = user.activePlan;
-      if (!plan || plan.status !== 'mining') {
-        return res.status(400).json({ error: 'No active mining.' });
-      }
-      if (new Date() < new Date(user.miningFinishTime)) {
-        const remaining = Math.ceil((new Date(user.miningFinishTime) - Date.now()) / 60000);
-        return res.status(400).json({ error: `Mining not done. ${remaining} minutes left.` });
-      }
+      const reward = networkCfg.reward;
+      const newCount = todayAds + 1;
 
       await users.updateOne(
         { telegramId: tgId },
         {
-          $inc: { egBalance: plan.yield },
-          $set: { activePlan: { ...plan, status: 'done' }, miningFinishTime: null },
+          $inc: {
+            egBalance: reward,
+            totalAdsWatched: 1,
+            [`todayAds.${today}.${planId}.${network}`]: 1,
+          },
         }
+      );
+
+      // Refer reward: referrer gets 80 EG when referred user completes 10 tasks
+      // (tracked separately in tasks.js)
+
+      return res.status(200).json({
+        success: true,
+        reward,
+        watched: newCount,
+        limit: networkCfg.limit,
+      });
+    }
+
+    // ── action: claim (mining complete) ──────────────────────────
+    if (action === 'claim') {
+      const plan = user.activePlan;
+      if (!plan || plan.status !== 'mining') return res.status(400).json({ error: 'No active mining' });
+      if (new Date() < new Date(user.miningFinishTime)) {
+        const remaining = Math.ceil((new Date(user.miningFinishTime) - Date.now()) / 60000);
+        return res.status(400).json({ error: `Mining not done. ${remaining} minutes left.` });
+      }
+      await users.updateOne(
+        { telegramId: tgId },
+        { $inc: { egBalance: plan.yield }, $set: { activePlan: null, miningFinishTime: null } }
       );
       return res.status(200).json({ success: true, reward: plan.yield });
     }
@@ -156,4 +125,4 @@ export default async function handler(req, res) {
     console.error('mining.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-        }
+  }
