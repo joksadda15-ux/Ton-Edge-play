@@ -2,7 +2,7 @@ import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge.vercel.app');
+  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -97,4 +97,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+          }
