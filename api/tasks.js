@@ -1,10 +1,10 @@
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
-const BOT_LINK = 'http://t.me/TonEdge_play_bot/startapp';
+const BOT_LINK = 'http://t.me/TonEdge_play_bot/playearn';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge.vercel.app');
+  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
 
   const telegramId = req.query.telegramId || req.body?.telegramId;
   const initData = req.query.initData || req.body?.initData;
