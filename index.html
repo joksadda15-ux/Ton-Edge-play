@@ -443,6 +443,19 @@
     </div>
 </div>
 
+<!-- CHANNEL VERIFY OVERLAY -->
+<div id="channelVerifyOverlay" class="fixed inset-0 bg-[#080c14] hidden items-center justify-center p-6 z-[70] flex-col gap-5 text-center">
+    <div class="w-20 h-20 bg-amber-500 rounded-3xl flex items-center justify-center shadow-xl mb-2"><i class="fa-solid fa-egg text-slate-900 text-4xl"></i></div>
+    <h2 class="text-xl font-black">Welcome to Ton Edge Play!</h2>
+    <p class="text-sm text-slate-400">Join our official channels to unlock the app</p>
+    <div class="w-full space-y-3 mt-2">
+        <a href="https://t.me/ton_edge_play" target="_blank" class="flex items-center gap-3 bg-sky-600/20 border border-sky-600/40 rounded-2xl p-4 text-left active:scale-95"><div class="bg-sky-600 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-brands fa-telegram text-white"></i></div><div><div class="text-sm font-bold text-white">Official Channel</div><div class="text-xs text-slate-400">@ton_edge_play</div></div><i class="fa-solid fa-arrow-right text-slate-500 ml-auto"></i></a>
+        <a href="https://t.me/ton_edge_community" target="_blank" class="flex items-center gap-3 bg-emerald-600/20 border border-emerald-600/40 rounded-2xl p-4 text-left active:scale-95"><div class="bg-emerald-600 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-users text-white"></i></div><div><div class="text-sm font-bold text-white">Community</div><div class="text-xs text-slate-400">@ton_edge_community</div></div><i class="fa-solid fa-arrow-right text-slate-500 ml-auto"></i></a>
+    </div>
+    <button onclick="verifyChannelJoin()" class="w-full bg-amber-500 text-slate-900 font-black py-4 rounded-2xl text-sm mt-2">✅ I've Joined — Continue</button>
+    <p class="text-[10px] text-slate-600">You must join both channels</p>
+</div>
+
 <!-- AD OVERLAY -->
 <div id="adOverlay" class="fixed inset-0 bg-slate-950/97 hidden items-center justify-center p-4 z-[60] flex-col gap-6">
     <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-xs text-center space-y-4">
@@ -515,6 +528,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const referCode = startParam || '';
 
     // Register / load user
+    await checkChannelJoin();
     await registerOrLoad(referCode);
     renderMarket();
     loadTasks();
@@ -543,6 +557,33 @@ async function registerOrLoad(referCode) {
     } catch (e) { console.error(e); }
 }
 
+
+async function checkChannelJoin() {
+    if (sessionStorage.getItem("ch_verified")) return;
+    try {
+        const res = await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+        const data = await res.json();
+        if (!data.joined) {
+            document.getElementById("channelVerifyOverlay").classList.remove("hidden");
+            document.getElementById("channelVerifyOverlay").classList.add("flex");
+        } else { sessionStorage.setItem("ch_verified","1"); }
+    } catch {}
+}
+
+async function verifyChannelJoin() {
+    try {
+        const res = await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+        const data = await res.json();
+        if (data.joined) {
+            sessionStorage.setItem("ch_verified","1");
+            document.getElementById("channelVerifyOverlay").classList.add("hidden");
+            document.getElementById("channelVerifyOverlay").classList.remove("flex");
+        } else {
+            if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Please join both channels first!");
+            else alert("Please join both channels first!");
+        }
+    } catch { toast("error","Check failed, try again"); }
+}
 async function refreshUser() {
     try {
         const res = await fetch(`${API}/user?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
