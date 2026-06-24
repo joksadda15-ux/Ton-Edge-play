@@ -15,7 +15,7 @@ function todayKey() {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge.vercel.app');
+  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { telegramId, initData, action, planId, network } = req.body;
@@ -125,4 +125,4 @@ export default async function handler(req, res) {
     console.error('mining.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-  }
+}
