@@ -2,7 +2,7 @@ import { getDb } from '../lib/mongodb.js';
 
 const ADMIN_ID = process.env.ADMIN_ID;
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const MINI_APP_URL = 'http://t.me/TonEdge_play_bot/startapp';
+const MINI_APP_URL = 'http://t.me/TonEdge_play_bot/playearn';
 const CHANNEL = '@coinly_task';
 const COMMUNITY = '@ton_edge_community';
 
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🚀 Open Ton Edge Play', web_app: { url: 'https://ton-edge.vercel.app' } }],
+              [{ text: '🚀 Open Ton Edge Play', web_app: { url: 'https://ton-edge-play.vercel.app' } }],
               [{ text: '👥 Share & Earn', url: `https://t.me/share/url?url=${encodeURIComponent(`${MINI_APP_URL}?startapp=${referCode}`)}&text=${encodeURIComponent('🥚 Join Ton Edge Play and earn EG coins! Mine eggs, watch ads & withdraw crypto!')}` }],
             ],
           },
@@ -202,7 +202,7 @@ export default async function handler(req, res) {
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: '🚀 Open Ton Edge Play', web_app: { url: 'https://ton-edge.vercel.app' } }],
+            [{ text: '🚀 Open Ton Edge Play', web_app: { url: 'https://ton-edge-play.vercel.app' } }],
             [{ text: '👥 Share & Earn', url: `https://t.me/share/url?url=${encodeURIComponent(`${MINI_APP_URL}?startapp=${referCode}`)}&text=${encodeURIComponent('🥚 Join Ton Edge Play! Mine eggs, watch ads & withdraw crypto!')}` }],
           ],
         },
@@ -426,4 +426,4 @@ export default async function handler(req, res) {
   }
 
   res.status(200).json({ ok: true });
-                                   }
+      }
