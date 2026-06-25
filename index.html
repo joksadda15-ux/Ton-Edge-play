@@ -1,1071 +1,1110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>Ton Edge Play</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        * { -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: #080c14; color: #f1f5f9; user-select: none; overscroll-behavior: none; }
-        ::-webkit-scrollbar { width: 3px; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        .nav-active .nav-icon { color: #f59e0b; }
-        .nav-active .nav-label { color: #f59e0b; }
-        .nav-active { border-top: 2px solid #f59e0b; }
-        .glow-amber { box-shadow: 0 0 24px rgba(245,158,11,0.08); }
-        #spiritSheet { transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.32,0,0.67,0); }
-        #spiritSheet.open { transform: translateY(0); }
-        #sheetBackdrop { opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-        #sheetBackdrop.open { opacity: 1; pointer-events: all; }
-        .badge-1 { background:#334155;color:#94a3b8; }
-        .badge-2 { background:#14532d;color:#4ade80; }
-        .badge-3 { background:#1e3a5f;color:#38bdf8; }
-        .badge-4 { background:#4c1d95;color:#c084fc; }
-        .badge-5 { background:#7c2d12;color:#fb923c; }
-        .badge-6 { background:#1f1010;color:#ef4444;border:1px solid #ef444440; }
-        .spirit-card { background:#0f1626;border:1px solid #1e293b;border-radius:16px;overflow:hidden;cursor:pointer;transition:transform 0.15s,border-color 0.15s; }
-        .spirit-card:active { transform:scale(0.97); }
-        .spirit-card.owned { border-color:#f59e0b55; }
-        .tab-btn { transition:all 0.2s; }
-        .tab-btn.active-tab { background:#f59e0b;color:#0a0e17; }
-        .mining-bar-fill { background:linear-gradient(90deg,#f59e0b,#fbbf24);transition:width 1s linear; }
-        .stat-box { background:#0f1626;border:1px solid #1e293b;border-radius:12px;padding:10px 14px; }
-        .action-btn { background:#1a2235;border:1px solid #1e293b;border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background 0.15s; }
-        .action-btn:active { background:#243047; }
-        .withdraw-main-btn { background:linear-gradient(135deg,#059669,#10b981);border-radius:14px;padding:16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:opacity 0.15s; }
-        .withdraw-main-btn:active { opacity:0.85; }
-        .balance-card { background:linear-gradient(135deg,#0d1421 0%,#111827 60%,#0a1020 100%);border:1px solid #1e3a5f40;border-radius:20px;position:relative;overflow:hidden; }
-        .balance-card::before { content:'';position:absolute;top:-40px;right:-40px;width:150px;height:150px;background:radial-gradient(circle,#f59e0b10 0%,transparent 70%);border-radius:50%; }
-        /* Ads Row Style */
-        .ads-row { background:#0f1626;border:1px solid #1e293b;border-radius:14px;padding:14px; }
-        .ad-progress-bar { height:4px;background:#1e293b;border-radius:2px;overflow:hidden;margin:6px 0; }
-        .ad-progress-fill { height:100%;border-radius:2px;transition:width 0.3s; }
-        .ad-watch-btn { background:#1e293b;border:1px solid #334155;border-radius:10px;padding:8px 14px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:6px; }
-        .ad-watch-btn:not(:disabled):active { transform:scale(0.97); }
-        .ad-watch-btn:disabled { opacity:0.4;cursor:not-allowed; }
-        .ad-watch-btn.adsgram { color:#f59e0b; }
-        .ad-watch-btn.monetag { color:#38bdf8; }
-        .ad-watch-btn.gigapub { color:#4ade80; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Ton Edge Play</title>
+<script src="https://telegram.org/js/telegram-web-app.js?56"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+  --g1:#00ff87; --g2:#00c96e; --g3:#00954f;
+  --bg:#060d0a; --bg2:#0b1610; --bg3:#0f1f16;
+  --card:#111f18; --card2:#162a1f;
+  --border:#1a3326; --border2:#22453a;
+  --text:#e8f5ee; --muted:#5a8a6e; --muted2:#3d6652;
+  --white:#ffffff; --amber:#f59e0b; --red:#ef4444;
+  --glow: 0 0 30px rgba(0,255,135,0.12);
+  --glow-s: 0 0 15px rgba(0,255,135,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overscroll-behavior:none}
+::-webkit-scrollbar{width:2px}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ── ONBOARDING ─────────────────────────── */
+#onboard{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+.ob-step{display:none;flex-direction:column;align-items:center;width:100%;padding:0 24px;animation:obIn .5s cubic-bezier(.32,0,.2,1)}
+.ob-step.active{display:flex}
+@keyframes obIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+
+/* Welcome animation */
+#ob-welcome .egg-3d{width:120px;height:120px;margin-bottom:20px;position:relative;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotateY(0deg)}50%{transform:translateY(-12px) rotateY(180deg)}}
+.egg-shell{width:120px;height:120px;background:linear-gradient(135deg,#00ff87 0%,#00c96e 50%,#007a45 100%);border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;box-shadow:0 0 40px rgba(0,255,135,.4),inset -20px -20px 40px rgba(0,0,0,.3),inset 10px 10px 20px rgba(255,255,255,.15);position:relative;overflow:hidden}
+.egg-shine{position:absolute;top:15%;left:20%;width:30%;height:20%;background:rgba(255,255,255,.4);border-radius:50%;filter:blur(4px)}
+.ob-title{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;text-align:center;line-height:1.2;margin-bottom:8px}
+.ob-title span{color:var(--g1)}
+.ob-sub{font-size:13px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:32px}
+.ob-btn{width:100%;background:linear-gradient(135deg,var(--g1),var(--g2));color:#000;font-weight:800;font-size:15px;padding:16px;border-radius:16px;border:none;cursor:pointer;transition:all .2s;box-shadow:0 4px 20px rgba(0,255,135,.3)}
+.ob-btn:active{transform:scale(.97)}
+.ob-btn-ghost{width:100%;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:13px;padding:12px;border-radius:12px;cursor:pointer;margin-top:10px;transition:all .2s}
+
+/* Disclaimer */
+#ob-disclaimer .disc-icon{width:72px;height:72px;background:linear-gradient(135deg,var(--card2),var(--card));border:1px solid var(--border2);border-radius:20px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:var(--glow-s)}
+.disc-list{width:100%;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:12px}
+.disc-item{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:var(--muted);line-height:1.5}
+.disc-item i{color:var(--g1);margin-top:2px;flex-shrink:0;font-size:13px}
+.disc-check{display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer}
+.disc-check input{width:18px;height:18px;accent-color:var(--g1);cursor:pointer;flex-shrink:0}
+.disc-check span{font-size:12px;color:var(--muted)}
+
+/* Channel join */
+#ob-channel .ch-cards{width:100%;display:flex;flex-direction:column;gap:10px;margin:16px 0 20px}
+.ch-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;text-decoration:none;color:var(--text);transition:all .2s;position:relative;overflow:hidden}
+.ch-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,255,135,.04),transparent);opacity:0;transition:opacity .2s}
+.ch-card:active::before{opacity:1}
+.ch-card.joined{border-color:var(--g3);background:rgba(0,255,135,.05)}
+.ch-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.ch-info{flex:1}
+.ch-name{font-size:13px;font-weight:700}
+.ch-handle{font-size:11px;color:var(--muted);margin-top:1px}
+.ch-status{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:var(--border);color:var(--muted)}
+.ch-card.joined .ch-status{background:rgba(0,255,135,.15);color:var(--g1)}
+
+/* ── MAIN APP ───────────────────────────── */
+#app{display:none;flex-direction:column;height:100vh;overflow:hidden}
+#app.show{display:flex}
+
+/* Header */
+#hdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 16px;flex-shrink:0;position:relative;z-index:10}
+.hdr-inner{display:flex;align-items:center;justify-content:space-between;max-width:480px;margin:0 auto}
+.hdr-logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--g1),var(--g2));border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,255,135,.3)}
+.logo-icon i{color:#000;font-size:16px}
+.logo-text{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:800;color:var(--white)}
+.logo-text span{color:var(--g1)}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.bal-chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 12px}
+.bal-chip i{color:var(--g1);font-size:11px}
+.bal-chip span{font-size:12px;font-weight:700;color:var(--g1)}
+.ic-btn{width:34px;height:34px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;color:var(--muted)}
+.ic-btn:active{background:var(--card2);transform:scale(.95)}
+
+/* Scroll area */
+#scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 16px 80px;max-width:480px;margin:0 auto;width:100%}
+
+/* Bottom Nav */
+#nav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:10;padding:6px 0 8px}
+.nav-inner{display:grid;grid-template-columns:repeat(4,1fr);max-width:480px;margin:0 auto}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;cursor:pointer;border:none;background:none;border-top:2px solid transparent;transition:all .2s}
+.nav-btn.act{border-top-color:var(--g1)}
+.nav-btn i{font-size:18px;color:var(--muted);transition:color .2s}
+.nav-btn span{font-size:9px;font-weight:700;color:var(--muted);transition:color .2s;text-transform:uppercase;letter-spacing:.5px}
+.nav-btn.act i,.nav-btn.act span{color:var(--g1)}
+
+/* ── CARDS & COMPONENTS ─────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;margin-bottom:12px;transition:transform .15s}
+.card-p{padding:16px}
+.card-glow{box-shadow:var(--glow)}
+.section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Balance card */
+.bal-card{background:linear-gradient(135deg,var(--bg3) 0%,var(--card2) 60%,#0a1e12 100%);border:1px solid var(--border2);border-radius:22px;padding:20px;margin-bottom:12px;position:relative;overflow:hidden}
+.bal-card::before{content:'';position:absolute;top:-60px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(0,255,135,.08) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+.bal-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:6px}
+.bal-amount{font-family:'Space Grotesk',sans-serif;font-size:42px;font-weight:800;color:var(--g1);line-height:1;text-shadow:0 0 30px rgba(0,255,135,.3)}
+.bal-unit{font-size:16px;color:var(--g2);margin-left:4px}
+.bal-usd{font-size:12px;color:var(--muted);margin-top:4px;margin-bottom:16px}
+.bal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.mini-stat{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.mini-stat-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:3px}
+.mini-stat-val{font-size:14px;font-weight:700}
+.wd-btn{width:100%;background:linear-gradient(135deg,var(--g1),var(--g2));color:#000;font-weight:800;font-size:14px;padding:14px;border-radius:14px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all .2s;box-shadow:0 4px 20px rgba(0,255,135,.25)}
+.wd-btn:active{transform:scale(.98);opacity:.9}
+.convert-btn{width:100%;margin-top:8px;background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:13px;font-weight:700;padding:11px;border-radius:12px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.convert-btn:active{background:var(--card2)}
+
+/* Mining progress */
+.mining-card{background:linear-gradient(135deg,rgba(0,255,135,.05),rgba(0,150,80,.03));border:1px solid rgba(0,255,135,.2);border-radius:16px;padding:14px;margin-bottom:12px}
+.mine-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mine-title{font-size:11px;font-weight:700;color:var(--g1);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px}
+.mine-dot{width:8px;height:8px;background:var(--g1);border-radius:50%;box-shadow:0 0 8px var(--g1);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.8)}}
+.mine-bar-bg{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.mine-bar-fill{height:100%;background:linear-gradient(90deg,var(--g1),var(--g2));border-radius:3px;transition:width 1s linear;box-shadow:0 0 8px rgba(0,255,135,.4)}
+.mine-stats{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.mine-stats span{color:var(--text);font-weight:600}
+
+/* Quick actions */
+.actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.action-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.action-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,255,135,.04),transparent);opacity:0;transition:.2s}
+.action-card:active::before{opacity:1}
+.action-card:active{transform:scale(.97)}
+.action-card-full{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+.ac-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;font-size:16px}
+.ac-title{font-size:12px;font-weight:700}
+.ac-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.ac-badge{font-size:11px;font-weight:700;background:rgba(0,255,135,.12);color:var(--g1);border:1px solid rgba(0,255,135,.2);padding:4px 12px;border-radius:8px}
+
+/* Promo */
+.promo-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px}
+.promo-row{display:flex;gap:8px;margin-top:10px}
+.promo-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;font-family:'Inter',sans-serif}
+.promo-input:focus{border-color:var(--g2)}
+.promo-input::placeholder{color:var(--muted2)}
+.promo-apply{background:var(--g2);color:#000;font-weight:800;font-size:12px;padding:10px 16px;border-radius:10px;border:none;cursor:pointer;transition:all .15s;white-space:nowrap}
+.promo-apply:active{transform:scale(.97)}
+
+/* ── MARKET ─────────────────────────────── */
+.mkt-tabs{display:flex;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:4px;gap:4px;margin-bottom:14px}
+.mkt-tab{flex:1;text-align:center;font-size:12px;font-weight:700;padding:8px;border-radius:10px;cursor:pointer;transition:all .2s;color:var(--muted)}
+.mkt-tab.act{background:var(--g2);color:#000}
+.spirit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.spirit-card{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;cursor:pointer;transition:all .2s;position:relative}
+.spirit-card:active{transform:scale(.97)}
+.spirit-card.owned{border-color:rgba(0,255,135,.3);box-shadow:0 0 20px rgba(0,255,135,.08)}
+.spirit-img-wrap{position:relative;background:var(--bg3);aspect-ratio:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.spirit-img-wrap::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,rgba(0,255,135,.06) 0%,transparent 70%)}
+.spirit-img{width:80%;height:80%;object-fit:contain;transition:transform .3s;filter:drop-shadow(0 4px 16px rgba(0,255,135,.2))}
+.spirit-card:hover .spirit-img{transform:scale(1.05)}
+.spirit-rarity{position:absolute;top:8px;left:8px;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:3px 7px;border-radius:20px}
+.spirit-owned-badge{position:absolute;top:8px;right:8px;background:var(--g1);color:#000;font-size:9px;font-weight:800;padding:3px 6px;border-radius:8px}
+.spirit-info{padding:10px}
+.spirit-name{font-size:12px;font-weight:700;margin-bottom:3px}
+.spirit-daily{font-size:10px;color:var(--g2);margin-bottom:6px}
+.spirit-price{display:flex;align-items:center;justify-content:space-between}
+.spirit-price-val{font-size:13px;font-weight:800;color:var(--amber);display:flex;align-items:center;gap:4px}
+.spirit-ads{font-size:9px;color:var(--muted)}
+.rarity-Common{background:#1a2a1a;color:#4ade80}
+.rarity-Uncommon{background:#1a2a15;color:#86efac}
+.rarity-Rare{background:#1a2040;color:#60a5fa}
+.rarity-Epic{background:#2d1a40;color:#c084fc}
+.rarity-Legendary{background:#2d1a0a;color:#fb923c}
+.rarity-Mythic{background:#2d0a0a;color:#f87171;border:1px solid #f8717140}
+
+/* ── TASKS ──────────────────────────────── */
+.tasks-hero{background:linear-gradient(135deg,rgba(0,255,135,.08),rgba(0,150,80,.04));border:1px solid rgba(0,255,135,.15);border-radius:20px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden;text-align:center}
+.tasks-hero::before{content:'TASKS';position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:72px;font-weight:900;color:rgba(0,255,135,.04);letter-spacing:8px;pointer-events:none;font-family:'Space Grotesk',sans-serif;white-space:nowrap}
+.tasks-hero-icon{width:56px;height:56px;background:linear-gradient(135deg,var(--g1),var(--g2));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:24px;box-shadow:0 4px 20px rgba(0,255,135,.35)}
+.tasks-hero-title{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:800;color:var(--white);margin-bottom:4px}
+.tasks-hero-sub{font-size:12px;color:var(--muted)}
+.task-item{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;transition:all .15s;position:relative;overflow:hidden}
+.task-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--g1);border-radius:0 2px 2px 0;opacity:0;transition:.2s}
+.task-item.done::before{opacity:1}
+.task-item:active{transform:scale(.99)}
+.task-ico{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.task-text{flex:1}
+.task-name{font-size:12px;font-weight:700}
+.task-reward{font-size:11px;color:var(--g2);margin-top:2px}
+.task-action{flex-shrink:0}
+.task-start-btn{background:linear-gradient(135deg,var(--g1),var(--g2));color:#000;font-size:11px;font-weight:800;padding:7px 14px;border-radius:9px;border:none;cursor:pointer;transition:all .15s}
+.task-start-btn:active{transform:scale(.95)}
+.task-done-badge{background:rgba(0,255,135,.12);color:var(--g1);border:1px solid rgba(0,255,135,.2);font-size:10px;font-weight:700;padding:5px 10px;border-radius:9px}
+
+/* ── REFER ──────────────────────────────── */
+.refer-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.ref-stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center}
+.ref-stat-val{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;color:var(--g1)}
+.ref-stat-label{font-size:10px;color:var(--muted);margin-top:2px}
+.ref-link-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:10px}
+.ref-link-row{display:flex;gap:8px;margin-top:8px}
+.ref-link-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:9px 12px;font-size:10px;color:var(--muted);outline:none;font-family:'Inter',sans-serif}
+.ref-copy-btn{background:var(--g2);color:#000;font-weight:800;font-size:12px;padding:9px 14px;border-radius:10px;border:none;cursor:pointer;transition:all .15s}
+.ref-share-btn{width:100%;margin-top:8px;background:rgba(0,255,135,.08);border:1px solid rgba(0,255,135,.2);color:var(--g1);font-size:13px;font-weight:700;padding:12px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.ref-share-btn:active{background:rgba(0,255,135,.15)}
+.steps-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:10px}
+.step-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
+.step-row:last-child{border-bottom:none;padding-bottom:0}
+.step-left{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.step-num{width:22px;height:22px;background:var(--g2);color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
+.step-reward{font-size:13px;font-weight:800;color:var(--amber)}
+
+/* ── SHEET BOTTOM ───────────────────────── */
+#sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(4px)}
+#sheet-bg.open{opacity:1;pointer-events:all}
+#spirit-sheet{position:fixed;bottom:0;left:0;right:0;z-index:101;background:var(--bg2);border-top:1px solid var(--border);border-radius:24px 24px 0 0;transform:translateY(100%);transition:transform .35s cubic-bezier(.32,0,.2,1);max-height:88vh;overflow-y:auto}
+#spirit-sheet.open{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 0}
+.sheet-hero{padding:16px 20px;display:flex;align-items:center;gap:16px}
+.sheet-img{width:80px;height:80px;object-fit:contain;background:var(--card);border-radius:16px;padding:8px;filter:drop-shadow(0 4px 16px rgba(0,255,135,.2))}
+.sheet-meta{flex:1}
+.sheet-rarity-badge{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:3px 8px;border-radius:20px;margin-bottom:6px;display:inline-block}
+.sheet-name{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:800}
+.sheet-yield{font-size:12px;color:var(--g2);margin-top:2px}
+.sheet-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px;margin-bottom:14px}
+.sheet-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center}
+.sheet-stat-label{font-size:9px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.sheet-stat-val{font-size:14px;font-weight:700}
+
+/* Ads rows */
+.ads-section{padding:0 20px;margin-bottom:16px;display:flex;flex-direction:column;gap:8px}
+.ad-row{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px}
+.ad-row-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.ad-net-name{font-size:12px;font-weight:700}
+.ad-net-prog{font-size:11px;color:var(--muted)}
+.ad-bar-bg{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:8px}
+.ad-bar-fill{height:100%;border-radius:2px;transition:width .3s}
+.ad-watch-btn{width:100%;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:11px;font-weight:700;padding:8px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+.ad-watch-btn:active:not(:disabled){transform:scale(.97)}
+.ad-watch-btn:disabled{opacity:.35;cursor:not-allowed}
+.ad-watch-btn.adsgram{color:var(--amber)}
+.ad-watch-btn.monetag{color:#60a5fa}
+.ad-watch-btn.gigapub{color:var(--g1)}
+.sheet-buy-btn{margin:0 20px 28px;width:calc(100% - 40px);background:linear-gradient(135deg,var(--g1),var(--g2));color:#000;font-weight:800;font-size:15px;padding:16px;border-radius:16px;border:none;cursor:pointer;transition:all .15s;box-shadow:0 4px 24px rgba(0,255,135,.3)}
+.sheet-buy-btn:active{transform:scale(.98);opacity:.9}
+
+/* ── MODALS ─────────────────────────────── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:150;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.modal-bg.open{display:flex;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:22px;padding:20px;width:100%;max-width:360px;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.modal-close{margin-left:auto;background:var(--card);border:none;color:var(--muted);width:28px;height:28px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
+.modal-label{font-size:11px;color:var(--muted);margin-bottom:6px;margin-top:12px}
+.modal-select,.modal-input{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:11px;padding:11px 13px;font-size:12px;color:var(--text);outline:none;transition:border-color .2s;font-family:'Inter',sans-serif;appearance:none}
+.modal-select:focus,.modal-input:focus{border-color:var(--g2)}
+.modal-preview{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px 13px;font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5}
+.modal-submit{width:100%;margin-top:16px;background:linear-gradient(135deg,var(--g1),var(--g2));color:#000;font-weight:800;font-size:14px;padding:14px;border-radius:13px;border:none;cursor:pointer;transition:all .15s;box-shadow:0 4px 16px rgba(0,255,135,.25)}
+.modal-submit:active{transform:scale(.98)}
+
+/* ── AD OVERLAY ─────────────────────────── */
+#ad-overlay{position:fixed;inset:0;background:rgba(4,10,7,.96);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:20px;backdrop-filter:blur(8px)}
+#ad-overlay.open{display:flex;animation:fadeIn .3s}
+.ad-box{background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:28px 24px;text-align:center;width:300px}
+.ad-net-badge{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:22px;font-weight:800}
+.ad-title{font-size:16px;font-weight:800;margin-bottom:4px}
+.ad-hint{font-size:12px;color:var(--muted);margin-bottom:20px}
+.ad-timer-wrap{position:relative;width:80px;height:80px;margin:0 auto 16px}
+.ad-timer-wrap svg{width:80px;height:80px;transform:rotate(-90deg)}
+.ad-timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--g1)}
+.ad-collect-btn{width:100%;background:linear-gradient(135deg,var(--g1),var(--g2));color:#000;font-weight:800;font-size:14px;padding:14px;border-radius:13px;border:none;cursor:pointer;animation:bounce .8s ease-in-out infinite;display:none}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+
+/* ── SECTIONS ───────────────────────────── */
+.sec{display:none}.sec.act{display:block}
+
+/* Refer list */
+.ref-user-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px}
+.ref-user-item:last-child{border-bottom:none}
+
+/* TX item */
+.tx-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
+.tx-item:last-child{border-bottom:none}
+.tx-type{display:flex;align-items:center;gap:8px}
+.tx-ico{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.tx-label{font-weight:600}
+.tx-time{font-size:10px;color:var(--muted);margin-top:2px}
+.tx-amount{font-weight:700}
+.tx-amount.pos{color:var(--g1)}
+.tx-amount.neg{color:var(--red)}
+</style>
 </head>
-<body class="flex flex-col min-h-screen pb-20">
+<body>
 
-<header class="bg-[#0a0e17] border-b border-slate-800/60 px-4 py-3 sticky top-0 z-40">
-    <div class="flex justify-between items-center max-w-md mx-auto">
-        <div class="flex items-center gap-2.5">
-            <div class="bg-amber-500 rounded-xl w-9 h-9 flex items-center justify-center shadow-lg">
-                <i class="fa-solid fa-egg text-slate-900 text-base"></i>
-            </div>
-            <div>
-                <div class="text-sm font-bold leading-tight" id="tgName">Loading...</div>
-                <div class="text-[10px] text-slate-500">ID: <span id="tgId">—</span></div>
-            </div>
-        </div>
-        <div class="flex items-center gap-2">
-            <div class="flex items-center gap-1.5 bg-slate-800/70 rounded-full px-3 py-1.5">
-                <i class="fa-solid fa-coins text-amber-400 text-xs"></i>
-                <span class="text-xs font-bold text-amber-300" id="headerBalance">0</span>
-                <span class="text-[10px] text-slate-500">EG</span>
-            </div>
-            <button onclick="openTransactionModal()" class="bg-slate-800/70 w-9 h-9 rounded-full flex items-center justify-center relative">
-                <i class="fa-solid fa-receipt text-slate-300 text-sm"></i>
-            </button>
-        </div>
+<!-- ══ ONBOARDING ══════════════════════════════════════════════ -->
+<div id="onboard">
+
+  <!-- Step 1: Welcome -->
+  <div class="ob-step active" id="ob-welcome">
+    <div class="egg-3d">
+      <div class="egg-shell"><div class="egg-shine"></div></div>
     </div>
-</header>
+    <p class="ob-title">Welcome to<br><span>Ton Edge Play</span></p>
+    <p class="ob-sub">Mine eggs · Watch ads · Earn EG coins<br>Withdraw real crypto daily</p>
+    <button class="ob-btn" onclick="obNext('ob-disclaimer')">
+      <i class="fa-solid fa-egg"></i>&nbsp; Get Started
+    </button>
+  </div>
 
-<main class="flex-grow max-w-md w-full mx-auto p-4 space-y-3">
+  <!-- Step 2: Disclaimer -->
+  <div class="ob-step" id="ob-disclaimer">
+    <div class="disc-icon">
+      <i class="fa-solid fa-shield-halved" style="font-size:28px;color:var(--g1)"></i>
+    </div>
+    <p class="ob-title" style="font-size:20px;margin-bottom:12px">Terms & Rules</p>
+    <div class="disc-list">
+      <div class="disc-item"><i class="fa-solid fa-circle-check"></i><span><b>One device, one account.</b> Multiple accounts will be permanently banned without notice.</span></div>
+      <div class="disc-item"><i class="fa-solid fa-circle-check"></i><span><b>No fraud or cheating.</b> Any manipulation of rewards will result in ban and forfeited earnings.</span></div>
+      <div class="disc-item"><i class="fa-solid fa-circle-check"></i><span><b>Earn $0.50–$1.00/day</b> without investment by completing tasks and watching ads.</span></div>
+      <div class="disc-item"><i class="fa-solid fa-circle-check"></i><span><b>Withdrawals are processed</b> within 24–48 hours after admin review.</span></div>
+      <div class="disc-item"><i class="fa-solid fa-circle-check"></i><span><b>Channel membership required.</b> Leaving official channels will suspend your access.</span></div>
+    </div>
+    <label class="disc-check">
+      <input type="checkbox" id="disc-agree" onchange="document.getElementById('disc-confirm').disabled=!this.checked">
+      <span>I agree to the Terms & Conditions and understand the rules</span>
+    </label>
+    <button class="ob-btn" id="disc-confirm" disabled onclick="obNext('ob-channel')">
+      Confirm & Continue
+    </button>
+  </div>
+
+  <!-- Step 3: Channel Join -->
+  <div class="ob-step" id="ob-channel">
+    <div style="width:60px;height:60px;background:linear-gradient(135deg,var(--g1),var(--g2));border-radius:18px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,255,135,.3)">
+      <i class="fa-brands fa-telegram" style="font-size:28px;color:#000"></i>
+    </div>
+    <p class="ob-title" style="font-size:20px;margin-bottom:8px">Join Channels</p>
+    <p class="ob-sub" style="margin-bottom:0">Join both channels to unlock<br>full app access</p>
+    <div class="ch-cards">
+      <a href="https://t.me/ton_edge_play" target="_blank" class="ch-card" id="ch1" onclick="markJoined('ch1')">
+        <div class="ch-ico" style="background:rgba(0,255,135,.15)"><i class="fa-brands fa-telegram" style="color:var(--g1)"></i></div>
+        <div class="ch-info"><div class="ch-name">Official Channel</div><div class="ch-handle">@ton_edge_play</div></div>
+        <span class="ch-status" id="ch1-status">Join</span>
+      </a>
+      <a href="https://t.me/ton_edge_community" target="_blank" class="ch-card" id="ch2" onclick="markJoined('ch2')">
+        <div class="ch-ico" style="background:rgba(0,255,135,.1)"><i class="fa-solid fa-users" style="color:var(--g2)"></i></div>
+        <div class="ch-info"><div class="ch-name">Community</div><div class="ch-handle">@ton_edge_community</div></div>
+        <span class="ch-status" id="ch2-status">Join</span>
+      </a>
+    </div>
+    <button class="ob-btn" onclick="verifyAndEnter()">
+      <i class="fa-solid fa-check-circle"></i>&nbsp; I've Joined — Enter App
+    </button>
+    <p style="font-size:10px;color:var(--muted2);margin-top:10px;text-align:center">You must stay joined to use the app</p>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Header -->
+  <div id="hdr">
+    <div class="hdr-inner">
+      <div class="hdr-logo">
+        <div class="logo-icon"><i class="fa-solid fa-egg"></i></div>
+        <div>
+          <div class="logo-text">Ton <span>Edge</span></div>
+          <div style="font-size:9px;color:var(--muted);margin-top:-2px">ID: <span id="hdr-id">—</span></div>
+        </div>
+      </div>
+      <div class="hdr-right">
+        <div class="bal-chip"><i class="fa-solid fa-coins"></i><span id="hdr-bal">0</span><span style="font-size:9px;color:var(--muted)">EG</span></div>
+        <div class="ic-btn" onclick="openModal('tx-modal')"><i class="fa-solid fa-receipt"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll content -->
+  <div id="scroll">
 
     <!-- HOME -->
-    <section id="section-home" class="space-y-3">
-        <div class="balance-card p-5 glow-amber">
-            <div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">EG Balance</div>
-            <div class="flex items-end gap-2 mb-1">
-                <span class="text-4xl font-black text-amber-300 leading-none" id="egBalance">0.00</span>
-                <span class="text-base font-bold text-amber-500 mb-0.5">EG</span>
-            </div>
-            <div class="text-[10px] text-slate-600 mb-4" id="egToUsdtHelper">≈ $0.0000 USDT</div>
-            <div class="grid grid-cols-2 gap-2 mb-4">
-                <div class="stat-box">
-                    <div class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">TON</div>
-                    <div class="text-sm font-bold text-sky-400 flex items-center gap-1">
-                        <i class="fa-solid fa-gem text-xs"></i>
-                        <span id="tonBalance">0.00000</span>
-                    </div>
-                </div>
-                <div class="stat-box">
-                    <div class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">USDT</div>
-                    <div class="text-sm font-bold text-emerald-400 flex items-center gap-1">
-                        <i class="fa-solid fa-dollar-sign text-xs"></i>
-                        <span id="usdtBalance">0.00</span>
-                    </div>
-                </div>
-            </div>
-            <div class="withdraw-main-btn" onclick="openWithdrawModal()">
-                <div class="flex items-center gap-3">
-                    <div class="bg-white/20 rounded-lg w-8 h-8 flex items-center justify-center">
-                        <i class="fa-solid fa-wallet text-white text-sm"></i>
-                    </div>
-                    <div>
-                        <div class="text-white font-bold text-sm">Withdraw Funds</div>
-                        <div class="text-emerald-200 text-[10px]">Min 0.1 USDT · 0.05 TON · 5% fee</div>
-                    </div>
-                </div>
-                <i class="fa-solid fa-chevron-right text-white/60 text-sm"></i>
-            </div>
-            <button onclick="openConvertModal()" class="mt-2 w-full bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition">
-                <i class="fa-solid fa-shuffle"></i> Convert EG → TON / USDT
-            </button>
+    <div class="sec act" id="sec-home">
+      <!-- Balance -->
+      <div class="bal-card">
+        <div class="bal-label">EG Balance</div>
+        <div style="display:flex;align-items:baseline;gap:4px">
+          <span class="bal-amount" id="bal-eg">0.00</span>
+          <span class="bal-unit">EG</span>
         </div>
+        <div class="bal-usd" id="bal-usd">≈ $0.0000 USDT</div>
+        <div class="bal-grid">
+          <div class="mini-stat">
+            <div class="mini-stat-label">TON</div>
+            <div class="mini-stat-val" style="color:#60a5fa" id="bal-ton"><i class="fa-solid fa-gem" style="font-size:11px;margin-right:3px"></i>0.00000</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-stat-label">USDT</div>
+            <div class="mini-stat-val" style="color:#4ade80" id="bal-usdt"><i class="fa-solid fa-dollar-sign" style="font-size:11px;margin-right:2px"></i>0.00</div>
+          </div>
+        </div>
+        <button class="wd-btn" onclick="openModal('wd-modal')">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:32px;height:32px;background:rgba(0,0,0,.2);border-radius:9px;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-wallet"></i></div>
+            <div style="text-align:left"><div style="font-size:14px">Withdraw Funds</div><div style="font-size:10px;font-weight:600;opacity:.7">Min 0.1 USDT · 0.05 TON · 5% fee</div></div>
+          </div>
+          <i class="fa-solid fa-chevron-right" style="opacity:.6"></i>
+        </button>
+        <button class="convert-btn" onclick="openModal('cv-modal')">
+          <i class="fa-solid fa-shuffle"></i> Convert EG → TON / USDT
+        </button>
+      </div>
 
-        <!-- Mining Progress -->
-        <div id="miningQueueCard" class="hidden stat-box p-4">
-            <div class="flex justify-between items-center mb-2">
-                <div class="flex items-center gap-1.5 text-xs font-extrabold text-amber-400 uppercase tracking-wider">
-                    <i class="fa-solid fa-circle-notch animate-spin text-xs"></i> Mining Active
-                </div>
-                <span class="text-[10px] text-slate-400" id="miningPlanName">—</span>
-            </div>
-            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mb-2">
-                <div id="miningProgressBar" class="mining-bar-fill h-2 rounded-full" style="width:0%"></div>
-            </div>
-            <div class="flex justify-between text-[10px] text-slate-500">
-                <span>Mined: <span class="text-amber-400 font-bold" id="minedAmount">0</span> EG</span>
-                <span>Done in: <span class="text-slate-300 font-bold" id="miningTimeLeft">—</span></span>
-            </div>
+      <!-- Mining -->
+      <div class="mining-card" id="mining-card" style="display:none">
+        <div class="mine-hdr">
+          <div class="mine-title"><span class="mine-dot"></span>Mining Active</div>
+          <span style="font-size:10px;color:var(--muted)" id="mine-plan-name"></span>
         </div>
+        <div class="mine-bar-bg"><div class="mine-bar-fill" id="mine-bar" style="width:0%"></div></div>
+        <div class="mine-stats">
+          <div>Earned: <span id="mine-earned">0</span> EG</div>
+          <div>Done in: <span id="mine-eta">—</span></div>
+        </div>
+      </div>
 
-        <!-- Quick Actions -->
-        <div class="grid grid-cols-2 gap-3">
-            <div class="action-btn col-span-2 justify-between" onclick="claimDailyReward()">
-                <div class="flex items-center gap-3">
-                    <div class="bg-amber-500/15 text-amber-400 w-10 h-10 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-calendar-check text-lg"></i>
-                    </div>
-                    <div>
-                        <div class="text-sm font-bold">Daily Reward</div>
-                        <div class="text-[10px] text-slate-500">+25 EG every 24h</div>
-                    </div>
-                </div>
-                <span class="text-xs font-bold text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-lg" id="dailyClaimBtn">Claim</span>
-            </div>
-            <div class="action-btn flex-col items-start gap-1.5" onclick="switchTab('refer')">
-                <div class="bg-emerald-500/15 text-emerald-400 w-8 h-8 rounded-xl flex items-center justify-center mb-1">
-                    <i class="fa-solid fa-users text-sm"></i>
-                </div>
-                <div class="text-xs font-bold">Refer Friends</div>
-                <div class="text-[10px] text-slate-500">Earn per invite</div>
-            </div>
-            <div class="action-btn flex-col items-start gap-1.5" onclick="focusPromoInput()">
-                <div class="bg-indigo-500/15 text-indigo-400 w-8 h-8 rounded-xl flex items-center justify-center mb-1">
-                    <i class="fa-solid fa-ticket text-sm"></i>
-                </div>
-                <div class="text-xs font-bold">Promo Code</div>
-                <div class="text-[10px] text-slate-500">Enter code below</div>
-            </div>
+      <!-- Quick Actions -->
+      <div class="actions-grid">
+        <div class="action-card action-card-full" onclick="claimDaily()">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="ac-icon" style="background:rgba(0,255,135,.1);margin-bottom:0"><i class="fa-solid fa-calendar-check" style="color:var(--g1)"></i></div>
+            <div><div class="ac-title">Daily Reward</div><div class="ac-sub">+25 EG every 24 hours</div></div>
+          </div>
+          <span class="ac-badge" id="daily-btn">Claim</span>
         </div>
+        <div class="action-card" onclick="switchTab('refer')">
+          <div class="ac-icon" style="background:rgba(0,255,135,.08)"><i class="fa-solid fa-users" style="color:var(--g2)"></i></div>
+          <div class="ac-title">Refer</div>
+          <div class="ac-sub">Earn per invite</div>
+        </div>
+        <div class="action-card" onclick="document.getElementById('promo-input').focus();switchTab('home')">
+          <div class="ac-icon" style="background:rgba(245,158,11,.08)"><i class="fa-solid fa-ticket" style="color:var(--amber)"></i></div>
+          <div class="ac-title">Promo Code</div>
+          <div class="ac-sub">Enter below</div>
+        </div>
+      </div>
 
-        <!-- Promo Code -->
-        <div class="stat-box p-4">
-            <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">
-                <i class="fa-solid fa-ticket text-indigo-400 mr-1"></i> Promo Code
-            </div>
-            <div class="flex gap-2">
-                <input type="text" id="promoCodeInput" placeholder="Enter promo code"
-                    class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-xs flex-grow focus:outline-none focus:border-amber-500 text-white transition placeholder-slate-600">
-                <button onclick="redeemPromoCode()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 rounded-xl transition">Apply</button>
-            </div>
+      <!-- Promo -->
+      <div class="promo-box">
+        <div class="section-title"><i class="fa-solid fa-ticket" style="color:var(--amber)"></i> Promo Code</div>
+        <div class="promo-row">
+          <input class="promo-input" id="promo-input" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric">
+          <button class="promo-apply" onclick="redeemPromo()">Apply</button>
         </div>
-    </section>
+      </div>
+    </div>
 
     <!-- MARKET -->
-    <section id="section-market" class="hidden space-y-3">
-        <div class="flex bg-slate-900 border border-slate-800 rounded-2xl p-1 gap-1">
-            <button onclick="switchMarketTab('buy')" id="marketTab-buy" class="tab-btn active-tab flex-1 text-xs font-bold py-2.5 rounded-xl transition">
-                <i class="fa-solid fa-store mr-1"></i> Spirit Market
-            </button>
-            <button onclick="switchMarketTab('mine')" id="marketTab-mine" class="tab-btn flex-1 text-xs font-bold py-2.5 rounded-xl text-slate-400 transition">
-                <i class="fa-solid fa-layer-group mr-1"></i> My Spirits
-            </button>
-        </div>
-        <div id="marketBuyView" class="grid grid-cols-2 gap-3"></div>
-        <div id="marketMineView" class="hidden space-y-3">
-            <div id="mySpiritsContainer" class="space-y-3"></div>
-        </div>
-    </section>
+    <div class="sec" id="sec-market">
+      <div class="mkt-tabs">
+        <div class="mkt-tab act" id="mkt-tab-buy" onclick="switchMktTab('buy')"><i class="fa-solid fa-store"></i> Spirit Market</div>
+        <div class="mkt-tab" id="mkt-tab-mine" onclick="switchMktTab('mine')"><i class="fa-solid fa-layer-group"></i> My Spirits</div>
+      </div>
+      <div id="mkt-buy-view" class="spirit-grid"></div>
+      <div id="mkt-mine-view" style="display:none"></div>
+    </div>
 
     <!-- TASKS -->
-    <section id="section-tasks" class="hidden space-y-3">
-        <div class="stat-box text-center py-4">
-            <div class="text-base font-extrabold text-indigo-400 mb-1">Task Station</div>
-            <div class="text-xs text-slate-500">Complete tasks · earn EG instantly</div>
-        </div>
-        <div id="tasksList" class="space-y-2.5">
-            <div class="text-center py-8 text-slate-600 text-xs">Loading tasks...</div>
-        </div>
-    </section>
+    <div class="sec" id="sec-tasks">
+      <div class="tasks-hero">
+        <div class="tasks-hero-icon"><i class="fa-solid fa-list-check" style="color:#000"></i></div>
+        <div class="tasks-hero-title">Task Station</div>
+        <div class="tasks-hero-sub">Complete tasks · Earn EG instantly</div>
+      </div>
+      <div id="tasks-list"><div style="text-align:center;padding:32px 0;color:var(--muted);font-size:13px">Loading tasks...</div></div>
+    </div>
 
     <!-- REFER -->
-    <section id="section-refer" class="hidden space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-            <div class="stat-box text-center py-4">
-                <div class="text-[10px] text-slate-500 mb-1">Total Referrals</div>
-                <div class="text-2xl font-black text-emerald-400" id="totalRefs">0</div>
-            </div>
-            <div class="stat-box text-center py-4">
-                <div class="text-[10px] text-slate-500 mb-1">Total Earned</div>
-                <div class="text-xl font-black text-amber-400" id="totalRefEarned">0 EG</div>
-            </div>
+    <div class="sec" id="sec-refer">
+      <div class="refer-stats">
+        <div class="ref-stat"><div class="ref-stat-val" id="ref-total">0</div><div class="ref-stat-label">Total Referrals</div></div>
+        <div class="ref-stat"><div class="ref-stat-val" id="ref-earned" style="font-size:20px">0 EG</div><div class="ref-stat-label">Total Earned</div></div>
+      </div>
+      <div class="ref-link-box">
+        <div class="section-title"><i class="fa-solid fa-link" style="color:var(--g1)"></i> Your Referral Link</div>
+        <div class="ref-link-row">
+          <input class="ref-link-input" id="ref-link" readonly>
+          <button class="ref-copy-btn" onclick="copyRef()"><i class="fa-solid fa-copy"></i></button>
         </div>
-        <div class="stat-box p-4 space-y-3">
-            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                <i class="fa-solid fa-link text-emerald-400 mr-1"></i> Your Referral Link
-            </div>
-            <div class="flex gap-2">
-                <input type="text" id="refLinkInput" readonly value=""
-                    class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-[10px] flex-grow text-slate-400 focus:outline-none">
-                <button onclick="copyRefLink()" class="bg-emerald-600 text-white text-xs font-bold px-4 rounded-xl transition">
-                    <i class="fa-solid fa-copy"></i>
-                </button>
-            </div>
-            <button onclick="shareRefLink()" class="w-full bg-emerald-600/20 border border-emerald-600/30 text-emerald-400 text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2">
-                <i class="fa-brands fa-telegram"></i> Share via Telegram
-            </button>
-        </div>
-        <div class="stat-box p-4 space-y-3">
-            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                <i class="fa-solid fa-gift text-amber-400 mr-1"></i> Reward Steps
-            </div>
-            <div class="space-y-2">
-                <div class="flex justify-between items-center p-2.5 bg-slate-800/50 rounded-xl text-xs">
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-full bg-slate-700 text-slate-400 text-[10px] flex items-center justify-center font-bold">1</span>
-                        <span class="text-slate-300">Friend joins app</span>
-                    </div>
-                    <span class="text-amber-400 font-bold">+30 EG</span>
-                </div>
-                <div class="flex justify-between items-center p-2.5 bg-slate-800/50 rounded-xl text-xs">
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-full bg-slate-700 text-slate-400 text-[10px] flex items-center justify-center font-bold">2</span>
-                        <span class="text-slate-300">Friend completes 10 tasks</span>
-                    </div>
-                    <span class="text-amber-400 font-bold">+80 EG</span>
-                </div>
-                <div class="flex justify-between items-center p-2.5 bg-slate-800/50 rounded-xl text-xs">
-                    <div class="flex items-center gap-2">
-                        <span class="w-5 h-5 rounded-full bg-slate-700 text-slate-400 text-[10px] flex items-center justify-center font-bold">3</span>
-                        <span class="text-slate-300">Friend buys any Spirit</span>
-                    </div>
-                    <span class="text-amber-400 font-bold">+120 EG</span>
-                </div>
-            </div>
-        </div>
-        <!-- Referred Users List -->
-        <div class="stat-box p-4">
-            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-3">
-                <i class="fa-solid fa-users text-emerald-400 mr-1"></i> My Referrals
-            </div>
-            <div id="referredList" class="space-y-2 text-xs text-slate-600">Loading...</div>
-        </div>
-    </section>
-
-</main>
-
-<!-- BOTTOM NAV -->
-<nav class="bg-[#080c14] border-t border-slate-800/60 fixed bottom-0 left-0 right-0 py-2 z-40">
-    <div class="max-w-md mx-auto grid grid-cols-4">
-        <button onclick="switchTab('home')" id="tab-home" class="nav-active flex flex-col items-center gap-1 py-1 border-t-2 transition">
-            <i class="fa-solid fa-house nav-icon text-base text-amber-400"></i>
-            <span class="nav-label text-[10px] font-semibold text-amber-400">Home</span>
-        </button>
-        <button onclick="switchTab('market')" id="tab-market" class="flex flex-col items-center gap-1 py-1 border-t-2 border-transparent transition">
-            <i class="fa-solid fa-store nav-icon text-base text-slate-500"></i>
-            <span class="nav-label text-[10px] font-semibold text-slate-500">Market</span>
-        </button>
-        <button onclick="switchTab('tasks')" id="tab-tasks" class="flex flex-col items-center gap-1 py-1 border-t-2 border-transparent transition">
-            <i class="fa-solid fa-list-check nav-icon text-base text-slate-500"></i>
-            <span class="nav-label text-[10px] font-semibold text-slate-500">Tasks</span>
-        </button>
-        <button onclick="switchTab('refer')" id="tab-refer" class="flex flex-col items-center gap-1 py-1 border-t-2 border-transparent transition">
-            <i class="fa-solid fa-users nav-icon text-base text-slate-500"></i>
-            <span class="nav-label text-[10px] font-semibold text-slate-500">Refer</span>
-        </button>
-    </div>
-</nav>
-
-<!-- SPIRIT SHEET -->
-<div id="sheetBackdrop" class="fixed inset-0 bg-black/60 z-50" onclick="closeSpiritSheet()"></div>
-<div id="spiritSheet" class="fixed bottom-0 left-0 right-0 z-50 bg-[#0d1421] border-t border-slate-800 rounded-t-3xl max-h-[90vh] overflow-y-auto">
-    <div class="flex justify-center pt-3 pb-1"><div class="w-10 h-1 bg-slate-700 rounded-full"></div></div>
-    <div class="px-5 pb-4 pt-2 flex items-center gap-4">
-        <img id="sheetImg" src="" alt="" class="w-20 h-20 object-contain rounded-2xl bg-slate-800/60 p-2">
-        <div class="flex-1">
-            <span id="sheetBadge" class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">Common</span>
-            <div class="text-xl font-black mt-1" id="sheetName">Spirit</div>
-            <div class="text-amber-400 font-bold text-sm" id="sheetYield">—</div>
-        </div>
-        <button onclick="closeSpiritSheet()" class="bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center text-slate-300">
-            <i class="fa-solid fa-xmark text-sm"></i>
-        </button>
-    </div>
-    <div class="grid grid-cols-3 gap-2 px-5 mb-4">
-        <div class="stat-box text-center"><div class="text-[9px] text-slate-500 uppercase mb-1">Cost</div><div class="text-sm font-bold text-amber-300" id="sheetCost">—</div></div>
-        <div class="stat-box text-center"><div class="text-[9px] text-slate-500 uppercase mb-1">Owned</div><div class="text-sm font-bold text-white" id="sheetOwned">0</div></div>
-        <div class="stat-box text-center"><div class="text-[9px] text-slate-500 uppercase mb-1">Duration</div><div class="text-sm font-bold text-emerald-300" id="sheetDuration">—</div></div>
+        <button class="ref-share-btn" onclick="shareRef()"><i class="fa-brands fa-telegram"></i> Share via Telegram</button>
+      </div>
+      <div class="steps-card">
+        <div class="section-title"><i class="fa-solid fa-gift" style="color:var(--amber)"></i> Reward Steps</div>
+        <div class="step-row"><div class="step-left"><span class="step-num">1</span>Friend joins app</div><span class="step-reward">+30 EG</span></div>
+        <div class="step-row"><div class="step-left"><span class="step-num">2</span>Friend completes 10 tasks</div><span class="step-reward">+80 EG</span></div>
+        <div class="step-row"><div class="step-left"><span class="step-num">3</span>Friend buys any Spirit</div><span class="step-reward">+120 EG</span></div>
+      </div>
+      <div class="card card-p">
+        <div class="section-title"><i class="fa-solid fa-users" style="color:var(--g1)"></i> My Referrals</div>
+        <div id="ref-list"><div style="color:var(--muted);font-size:12px">No referrals yet</div></div>
+      </div>
     </div>
 
-    <!-- ADS ROWS — MeowRush style -->
-    <div class="px-5 mb-4 space-y-3" id="sheetAdsSection">
-        <!-- AdsGram Row -->
-        <div class="ads-row">
-            <div class="flex justify-between items-center mb-1">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-amber-400">⚡ AdsGram</span>
-                    <span class="text-[10px] text-slate-500" id="adsgram-reward-label">+20 EG/ad</span>
-                </div>
-                <span class="text-[10px] text-slate-400" id="adsgram-progress-label">0/1</span>
-            </div>
-            <div class="ad-progress-bar"><div class="ad-progress-fill bg-amber-400" id="adsgram-bar" style="width:0%"></div></div>
-            <button onclick="watchAd('adsgram')" id="adsgram-btn" class="ad-watch-btn adsgram mt-2 w-full justify-center">
-                <i class="fa-solid fa-play text-xs"></i> Watch Ad
-            </button>
-        </div>
-        <!-- Monetag Row -->
-        <div class="ads-row">
-            <div class="flex justify-between items-center mb-1">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-sky-400">📺 Monetag</span>
-                    <span class="text-[10px] text-slate-500" id="monetag-reward-label">+20 EG/ad</span>
-                </div>
-                <span class="text-[10px] text-slate-400" id="monetag-progress-label">0/1</span>
-            </div>
-            <div class="ad-progress-bar"><div class="ad-progress-fill bg-sky-400" id="monetag-bar" style="width:0%"></div></div>
-            <button onclick="watchAd('monetag')" id="monetag-btn" class="ad-watch-btn monetag mt-2 w-full justify-center">
-                <i class="fa-solid fa-play text-xs"></i> Watch Ad
-            </button>
-        </div>
-        <!-- GigaPub Row -->
-        <div class="ads-row">
-            <div class="flex justify-between items-center mb-1">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-emerald-400">🌐 GigaPub</span>
-                    <span class="text-[10px] text-slate-500" id="gigapub-reward-label">+20 EG/ad</span>
-                </div>
-                <span class="text-[10px] text-slate-400" id="gigapub-progress-label">0/1</span>
-            </div>
-            <div class="ad-progress-bar"><div class="ad-progress-fill bg-emerald-400" id="gigapub-bar" style="width:0%"></div></div>
-            <button onclick="watchAd('gigapub')" id="gigapub-btn" class="ad-watch-btn gigapub mt-2 w-full justify-center">
-                <i class="fa-solid fa-play text-xs"></i> Watch Ad
-            </button>
-        </div>
-    </div>
+  </div><!-- /scroll -->
 
-    <div class="px-5 pb-8">
-        <button id="sheetBuyBtn" onclick="attemptBuyFromSheet()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-black py-4 rounded-2xl text-sm transition flex items-center justify-center gap-2">
-            <i class="fa-solid fa-cart-shopping"></i> Buy Spirit
-        </button>
+  <!-- Bottom Nav -->
+  <div id="nav">
+    <div class="nav-inner">
+      <button class="nav-btn act" id="nav-home" onclick="switchTab('home')"><i class="fa-solid fa-house"></i><span>Home</span></button>
+      <button class="nav-btn" id="nav-market" onclick="switchTab('market')"><i class="fa-solid fa-store"></i><span>Market</span></button>
+      <button class="nav-btn" id="nav-tasks" onclick="switchTab('tasks')"><i class="fa-solid fa-list-check"></i><span>Tasks</span></button>
+      <button class="nav-btn" id="nav-refer" onclick="switchTab('refer')"><i class="fa-solid fa-users"></i><span>Refer</span></button>
     </div>
+  </div>
 </div>
 
-<!-- TRANSACTION MODAL -->
-<div id="txModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
-    <div class="bg-[#0d1421] border border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-        <div class="flex justify-between items-center">
-            <h3 class="font-extrabold text-sm flex items-center gap-2"><i class="fa-solid fa-history text-sky-400"></i> Transactions</h3>
-            <button onclick="closeTransactionModal()" class="text-slate-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div id="txList" class="space-y-2"></div>
+<!-- ══ SPIRIT SHEET ════════════════════════════════════════════ -->
+<div id="sheet-bg" onclick="closeSheet()"></div>
+<div id="spirit-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hero">
+    <img class="sheet-img" id="sh-img" src="" alt="">
+    <div class="sheet-meta">
+      <span class="sheet-rarity-badge" id="sh-rarity"></span>
+      <div class="sheet-name" id="sh-name"></div>
+      <div class="sheet-yield" id="sh-yield"></div>
     </div>
+    <button style="background:var(--card);border:none;color:var(--muted);width:32px;height:32px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;align-self:flex-start;margin-top:4px" onclick="closeSheet()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="sheet-stats">
+    <div class="sheet-stat"><div class="sheet-stat-label">Cost</div><div class="sheet-stat-val" id="sh-cost" style="color:var(--amber)"></div></div>
+    <div class="sheet-stat"><div class="sheet-stat-label">Owned</div><div class="sheet-stat-val" id="sh-owned"></div></div>
+    <div class="sheet-stat"><div class="sheet-stat-label">Duration</div><div class="sheet-stat-val" id="sh-dur" style="color:var(--g1)"></div></div>
+  </div>
+  <div class="ads-section" id="sh-ads"></div>
+  <button class="sheet-buy-btn" id="sh-buy-btn" onclick="buySpirit()">
+    <i class="fa-solid fa-cart-shopping"></i> Buy Spirit
+  </button>
 </div>
 
-<!-- CONVERT MODAL -->
-<div id="convertModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
-    <div class="bg-[#0d1421] border border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4">
-        <div class="flex justify-between items-center">
-            <h3 class="font-bold text-sm"><i class="fa-solid fa-shuffle text-indigo-400 mr-2"></i>Convert EG</h3>
-            <button onclick="closeConvertModal()" class="text-slate-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="space-y-3 text-xs">
-            <div>
-                <label class="block text-slate-500 mb-1.5">Minimum 500 EG</label>
-                <select id="convertTarget" onchange="updateConvertPreview()" class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none text-xs">
-                    <option value="USDT">USDT — 20,000 EG = $1.00</option>
-                    <option value="TON">TON — 20,000 EG = 0.5 TON</option>
-                </select>
-            </div>
-            <div>
-                <input type="number" id="convertAmount" placeholder="Enter EG amount (min 500)" oninput="updateConvertPreview()"
-                    class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none text-xs focus:border-indigo-500 transition">
-            </div>
-            <div class="p-3 bg-slate-800/50 rounded-xl text-[11px] text-slate-400">
-                <span id="convertPreview">Enter amount to preview</span>
-            </div>
-        </div>
-        <button onclick="processConversion()" class="w-full bg-indigo-600 hover:bg-indigo-500 font-bold py-3 rounded-xl text-xs transition">Confirm Convert</button>
-    </div>
+<!-- ══ MODALS ══════════════════════════════════════════════════ -->
+<!-- Withdraw -->
+<div class="modal-bg" id="wd-modal">
+  <div class="modal">
+    <div class="modal-title"><i class="fa-solid fa-wallet" style="color:var(--g1)"></i> Withdraw<button class="modal-close" onclick="closeModal('wd-modal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-label">Method</div>
+    <select class="modal-select" id="wd-method" onchange="updateWdPreview()">
+      <option value="binance">Binance UID (USDT) — Min $0.10</option>
+      <option value="tonkeeper">Tonkeeper (TON) — Min 0.05 TON</option>
+    </select>
+    <div class="modal-label" id="wd-addr-label">Binance UID</div>
+    <input class="modal-input" id="wd-addr" placeholder="Enter Binance UID (numbers only)" inputmode="numeric">
+    <div class="modal-label">EG Amount</div>
+    <input class="modal-input" id="wd-eg" type="number" placeholder="Min 2,000 EG" oninput="updateWdPreview()">
+    <div class="modal-preview" id="wd-preview">Enter amount to preview</div>
+    <div style="font-size:10px;color:var(--amber);margin-top:6px"><i class="fa-solid fa-triangle-exclamation"></i> 5% fee will be deducted</div>
+    <button class="modal-submit" onclick="submitWithdraw()">Submit Withdrawal</button>
+  </div>
 </div>
 
-<!-- WITHDRAW MODAL -->
-<div id="withdrawModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
-    <div class="bg-[#0d1421] border border-slate-800 w-full max-w-sm rounded-2xl p-5 space-y-4">
-        <div class="flex justify-between items-center">
-            <h3 class="font-bold text-sm"><i class="fa-solid fa-wallet text-emerald-400 mr-2"></i>Withdraw</h3>
-            <button onclick="closeWithdrawModal()" class="text-slate-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="space-y-3 text-xs">
-            <div>
-                <label class="block text-slate-500 mb-1.5">Method</label>
-                <select id="withdrawMethod" onchange="updateWithdrawInfo()" class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none text-xs">
-                    <option value="binance">Binance UID (USDT) — Min $0.10</option>
-                    <option value="tonkeeper">Tonkeeper (TON) — Min 0.05 TON</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-slate-500 mb-1.5" id="addressLabel">Binance UID</label>
-                <input type="text" id="withdrawAddress" placeholder="Enter Binance UID"
-                    class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none text-xs focus:border-emerald-500 transition">
-            </div>
-            <div>
-                <label class="block text-slate-500 mb-1.5">EG Amount</label>
-                <input type="number" id="withdrawEgAmount" placeholder="Min 2,000 EG" oninput="updateWithdrawPreview()"
-                    class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none text-xs focus:border-emerald-500 transition">
-            </div>
-            <div class="p-3 bg-slate-800/50 rounded-xl text-[11px] text-slate-400 space-y-1">
-                <div id="withdrawPreview">Enter amount to preview</div>
-                <div class="text-amber-400 text-[10px]">5% fee will be deducted</div>
-            </div>
-        </div>
-        <button onclick="processWithdrawal()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-bold py-3 rounded-xl text-xs transition">Submit Withdrawal</button>
-    </div>
+<!-- Convert -->
+<div class="modal-bg" id="cv-modal">
+  <div class="modal">
+    <div class="modal-title"><i class="fa-solid fa-shuffle" style="color:#818cf8"></i> Convert EG<button class="modal-close" onclick="closeModal('cv-modal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-label">Convert to</div>
+    <select class="modal-select" id="cv-to" onchange="updateCvPreview()">
+      <option value="USDT">USDT — 20,000 EG = $1.00</option>
+      <option value="TON">TON — 20,000 EG = 0.5 TON</option>
+    </select>
+    <div class="modal-label">EG Amount (min 500)</div>
+    <input class="modal-input" id="cv-eg" type="number" placeholder="Enter EG amount" oninput="updateCvPreview()">
+    <div class="modal-preview" id="cv-preview">Enter amount to preview</div>
+    <button class="modal-submit" onclick="submitConvert()">Convert</button>
+  </div>
 </div>
 
-<!-- CHANNEL VERIFY OVERLAY -->
-<div id="channelVerifyOverlay" class="fixed inset-0 bg-[#080c14] hidden items-center justify-center p-6 z-[70] flex-col gap-5 text-center">
-    <div class="w-20 h-20 bg-amber-500 rounded-3xl flex items-center justify-center shadow-xl mb-2"><i class="fa-solid fa-egg text-slate-900 text-4xl"></i></div>
-    <h2 class="text-xl font-black">Welcome to Ton Edge Play!</h2>
-    <p class="text-sm text-slate-400">Join our official channels to unlock the app</p>
-    <div class="w-full space-y-3 mt-2">
-        <a href="https://t.me/ton_edge_play" target="_blank" class="flex items-center gap-3 bg-sky-600/20 border border-sky-600/40 rounded-2xl p-4 text-left active:scale-95"><div class="bg-sky-600 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-brands fa-telegram text-white"></i></div><div><div class="text-sm font-bold text-white">Official Channel</div><div class="text-xs text-slate-400">@ton_edge_play</div></div><i class="fa-solid fa-arrow-right text-slate-500 ml-auto"></i></a>
-        <a href="https://t.me/ton_edge_community" target="_blank" class="flex items-center gap-3 bg-emerald-600/20 border border-emerald-600/40 rounded-2xl p-4 text-left active:scale-95"><div class="bg-emerald-600 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-users text-white"></i></div><div><div class="text-sm font-bold text-white">Community</div><div class="text-xs text-slate-400">@ton_edge_community</div></div><i class="fa-solid fa-arrow-right text-slate-500 ml-auto"></i></a>
-    </div>
-    <button onclick="verifyChannelJoin()" class="w-full bg-amber-500 text-slate-900 font-black py-4 rounded-2xl text-sm mt-2">✅ I've Joined — Continue</button>
-    <p class="text-[10px] text-slate-600">You must join both channels</p>
+<!-- Transactions -->
+<div class="modal-bg" id="tx-modal">
+  <div class="modal">
+    <div class="modal-title"><i class="fa-solid fa-receipt" style="color:#60a5fa"></i> Transactions<button class="modal-close" onclick="closeModal('tx-modal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div id="tx-list"><div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">No transactions yet</div></div>
+  </div>
 </div>
 
-<!-- AD OVERLAY -->
-<div id="adOverlay" class="fixed inset-0 bg-slate-950/97 hidden items-center justify-center p-4 z-[60] flex-col gap-6">
-    <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-xs text-center space-y-4">
-        <div id="adNetworkName" class="mx-auto w-16 h-16 bg-amber-500 text-slate-900 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg animate-pulse">AD</div>
-        <h3 class="text-base font-bold" id="adTitle">Loading Ad...</h3>
-        <p class="text-xs text-slate-500">Keep app open — earning EG reward</p>
-        <div class="relative w-20 h-20 mx-auto">
-            <svg class="w-full h-full -rotate-90">
-                <circle cx="40" cy="40" r="34" class="text-slate-800" stroke="currentColor" stroke-width="6" fill="transparent"/>
-                <circle id="adProgressCircle" cx="40" cy="40" r="34" class="text-amber-500" stroke="currentColor" stroke-width="6" fill="transparent" stroke-dasharray="213.628" stroke-dashoffset="213.628"/>
-            </svg>
-            <div class="absolute inset-0 flex items-center justify-center text-lg font-extrabold" id="adCountdown">5s</div>
-        </div>
-        <div id="adTapBox" class="hidden">
-            <button onclick="completeAdWatch()" class="w-full bg-amber-500 text-slate-900 text-xs font-black py-3 rounded-xl animate-bounce">
-                👉 TAP TO COLLECT REWARD 👈
-            </button>
-        </div>
+<!-- ══ AD OVERLAY ══════════════════════════════════════════════ -->
+<div id="ad-overlay">
+  <div class="ad-box">
+    <div class="ad-net-badge" id="ad-badge"></div>
+    <div class="ad-title" id="ad-title">Loading Ad...</div>
+    <div class="ad-hint">Keep app open · Earning reward</div>
+    <div class="ad-timer-wrap">
+      <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" stroke-width="6"/><circle id="ad-circle" cx="40" cy="40" r="34" fill="none" stroke="var(--g1)" stroke-width="6" stroke-dasharray="213.6" stroke-dashoffset="213.6" stroke-linecap="round"/></svg>
+      <div class="ad-timer-num" id="ad-num">5</div>
     </div>
+    <button class="ad-collect-btn" id="ad-collect" onclick="collectAd()">👉 TAP TO COLLECT 👈</button>
+  </div>
 </div>
 
 <script>
 const API = 'https://ton-edge-play.vercel.app/api';
-const RATES = { egToTon: 0.5/20000, egToUsdt: 1.0/20000 };
+const RATES = { egToTon: 0.5/20000, egToUsdt: 1/20000 };
 const FEE = 0.05;
-const MIN_WITHDRAW_EG_BINANCE = 2000;
-const MIN_WITHDRAW_EG_TON = 1000;
-const RARITY_BADGE = { Common:'badge-1', Uncommon:'badge-2', Rare:'badge-3', Epic:'badge-4', Legendary:'badge-5', Mythic:'badge-6' };
+const BOT_LINK = 'http://t.me/TonEdge_play_bot/playearn';
 
-// Spirit plans with per-network ad config
 const PLANS = {
-    1: { id:1, name:'Bird Spirit',    rarity:'Common',    cost:300,   yield:800,   miningHours:4,  img:'https://i.postimg.cc/R0mnCM86/IMG-20260621-172622.png',
-         ads:{ adsgram:{limit:1,reward:20}, monetag:{limit:1,reward:20}, gigapub:{limit:1,reward:20} } },
-    2: { id:2, name:'Chick Spirit',   rarity:'Uncommon',  cost:700,   yield:2000,  miningHours:6,  img:'https://i.postimg.cc/zfHntJMB/Generated-Image-June-21-2026-1-59PM-(1).png',
-         ads:{ adsgram:{limit:1,reward:30}, monetag:{limit:2,reward:20}, gigapub:{limit:2,reward:20} } },
-    3: { id:3, name:'Duck Spirit',    rarity:'Rare',      cost:1200,  yield:4500,  miningHours:8,  img:'https://i.postimg.cc/RV2yp0pK/Generated-Image-June-21-2026-2-03PM.png',
-         ads:{ adsgram:{limit:2,reward:35}, monetag:{limit:3,reward:20}, gigapub:{limit:3,reward:20} } },
-    4: { id:4, name:'Turtle Spirit',  rarity:'Epic',      cost:2000,  yield:10000, miningHours:12, img:'https://i.postimg.cc/K8RLjGm7/Generated-Image-June-21-2026-2-01PM-(1).png',
-         ads:{ adsgram:{limit:3,reward:40}, monetag:{limit:4,reward:25}, gigapub:{limit:4,reward:25} } },
-    5: { id:5, name:'Serpent Spirit', rarity:'Legendary', cost:5000,  yield:28000, miningHours:18, img:'https://i.postimg.cc/vTYxsMPc/Generated-Image-June-21-2026-2-01PM.png',
-         ads:{ adsgram:{limit:4,reward:50}, monetag:{limit:5,reward:30}, gigapub:{limit:5,reward:30} } },
-    6: { id:6, name:'Dragon Spirit',  rarity:'Mythic',    cost:7000,  yield:70000, miningHours:24, img:'https://i.postimg.cc/ncL9SFj1/Generated-Image-June-21-2026-1-59PM.png',
-         ads:{ adsgram:{limit:5,reward:60}, monetag:{limit:6,reward:35}, gigapub:{limit:6,reward:35} } },
+  1:{id:1,name:'Bird Spirit',   rarity:'Common',   cost:300,  yield:800,  miningHours:4,  img:'https://i.postimg.cc/R0mnCM86/IMG-20260621-172622.png',        ads:{adsgram:{limit:1,reward:20},monetag:{limit:1,reward:20},gigapub:{limit:1,reward:20}}},
+  2:{id:2,name:'Chick Spirit',  rarity:'Uncommon', cost:700,  yield:2000, miningHours:6,  img:'https://i.postimg.cc/zfHntJMB/Generated-Image-June-21-2026-1-59PM-(1).png',  ads:{adsgram:{limit:1,reward:30},monetag:{limit:2,reward:20},gigapub:{limit:2,reward:20}}},
+  3:{id:3,name:'Duck Spirit',   rarity:'Rare',     cost:1200, yield:4500, miningHours:8,  img:'https://i.postimg.cc/RV2yp0pK/Generated-Image-June-21-2026-2-03PM.png',      ads:{adsgram:{limit:2,reward:35},monetag:{limit:3,reward:20},gigapub:{limit:3,reward:20}}},
+  4:{id:4,name:'Turtle Spirit', rarity:'Epic',     cost:2000, yield:10000,miningHours:12, img:'https://i.postimg.cc/K8RLjGm7/Generated-Image-June-21-2026-2-01PM-(1).png',  ads:{adsgram:{limit:3,reward:40},monetag:{limit:4,reward:25},gigapub:{limit:4,reward:25}}},
+  5:{id:5,name:'Serpent Spirit',rarity:'Legendary',cost:5000, yield:28000,miningHours:18, img:'https://i.postimg.cc/vTYxsMPc/Generated-Image-June-21-2026-2-01PM.png',      ads:{adsgram:{limit:4,reward:50},monetag:{limit:5,reward:30},gigapub:{limit:5,reward:30}}},
+  6:{id:6,name:'Dragon Spirit', rarity:'Mythic',   cost:7000, yield:70000,miningHours:24, img:'https://i.postimg.cc/ncL9SFj1/Generated-Image-June-21-2026-1-59PM.png',      ads:{adsgram:{limit:5,reward:60},monetag:{limit:6,reward:35},gigapub:{limit:6,reward:35}}},
 };
 
-let tgUser = null, initData = '', userData = null;
-let activeSheetPlanId = null, currentAdNetwork = null, adTimer = null;
-let txs = [];
+let tgUser=null, initData='', userData=null;
+let activeSheet=null, currentAdNet=null, adTimer=null;
 
-// ── INIT ────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-    if (window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
-        initData = tg.initData || '';
-        tgUser = tg.initDataUnsafe?.user;
+// ── DEVICE FINGERPRINT ────────────────────────────────────────
+function getDeviceId() {
+  let did = localStorage.getItem('tep_device_id');
+  if (!did) {
+    did = 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+    localStorage.setItem('tep_device_id', did);
+  }
+  return did;
+}
+
+function checkOneDeviceOneAccount(telegramId) {
+  const did = getDeviceId();
+  const key = 'tep_device_user';
+  const stored = localStorage.getItem(key);
+  if (!stored) {
+    localStorage.setItem(key, JSON.stringify({ telegramId: String(telegramId), deviceId: did }));
+    return true;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    if (parsed.telegramId !== String(telegramId)) {
+      // Different account on same device
+      return false;
     }
-
-    if (!tgUser) {
-        // Dev fallback
-        tgUser = { id: 12345678, first_name: 'Dev', username: 'developer' };
-    }
-
-    document.getElementById('tgName').textContent = tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name : '');
-    document.getElementById('tgId').textContent = tgUser.id;
-
-    // Get refer code from URL
-    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param || '';
-    const referCode = startParam || '';
-
-    // Register / load user
-    await checkChannelJoin();
-    await registerOrLoad(referCode);
-    renderMarket();
-    loadTasks();
-    loadReferData();
-    checkMiningRestore();
-});
-
-async function registerOrLoad(referCode) {
-    try {
-        const res = await fetch(`${API}/user`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: tgUser.id,
-                username: tgUser.username || '',
-                firstName: tgUser.first_name || '',
-                referCode,
-                initData
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
-            userData = data.user;
-            updateBalanceUI();
-        }
-    } catch (e) { console.error(e); }
+  } catch { localStorage.setItem(key, JSON.stringify({ telegramId: String(telegramId), deviceId: did })); }
+  return true;
 }
 
+// ── INIT ──────────────────────────────────────────────────────
+async function main() {
+  const tg = window.Telegram.WebApp;
+  try { tg.ready(); } catch(e) {}
+  try { tg.expand(); } catch(e) {}
+  try { tg.enableClosingConfirmation(); } catch(e) {}
+  try { tg.setHeaderColor('#060d0a'); } catch(e) {}
 
-async function checkChannelJoin() {
-    if (sessionStorage.getItem("ch_verified")) return;
-    try {
-        const res = await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
-        const data = await res.json();
-        if (!data.joined) {
-            document.getElementById("channelVerifyOverlay").classList.remove("hidden");
-            document.getElementById("channelVerifyOverlay").classList.add("flex");
-        } else { sessionStorage.setItem("ch_verified","1"); }
-    } catch {}
+  // Wait for SDK
+  await new Promise(r => setTimeout(r, 800));
+  if (!tg.initDataUnsafe?.user) {
+    await new Promise(r => setTimeout(r, 1500));
+  }
+
+  // Block browser access
+  if (!tg.initDataUnsafe?.user) {
+    document.body.innerHTML = \`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px;background:#060d0a;"><div style="font-size:56px">📱</div><h3 style="color:#5a8a6e;font-size:15px;text-align:center;padding:0 32px;line-height:1.6">Please open this app<br>inside <b style="color:#00ff87">Telegram</b></h3></div>\`;
+    return;
+  }
+
+  tgUser = tg.initDataUnsafe.user;
+  initData = tg.initData || '';
+
+  // One device one account check
+  if (!checkOneDeviceOneAccount(tgUser.id)) {
+    document.body.innerHTML = \`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px;background:#060d0a;padding:32px;text-align:center;"><div style="font-size:56px">🚫</div><h3 style="color:#ef4444;font-size:16px;font-weight:800;margin-bottom:8px">Account Suspended</h3><p style="color:#5a8a6e;font-size:13px;line-height:1.6">This device is already registered with another account.<br><br>One device, one account policy applies.</p></div>\`;
+    return;
+  }
+
+  // Check if already onboarded
+  if (localStorage.getItem('tep_onboarded_'+tgUser.id)) {
+    await enterApp();
+  }
 }
 
-async function verifyChannelJoin() {
-    try {
-        const res = await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
-        const data = await res.json();
-        if (data.joined) {
-            sessionStorage.setItem("ch_verified","1");
-            document.getElementById("channelVerifyOverlay").classList.add("hidden");
-            document.getElementById("channelVerifyOverlay").classList.remove("flex");
-        } else {
-            if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert("Please join both channels first!");
-            else alert("Please join both channels first!");
-        }
-    } catch { toast("error","Check failed, try again"); }
-}
-async function refreshUser() {
-    try {
-        const res = await fetch(`${API}/user?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
-        const data = await res.json();
-        if (data.success) { userData = data.user; updateBalanceUI(); }
-    } catch(e) {}
+window.addEventListener('DOMContentLoaded', main);
+
+// ── ONBOARDING ────────────────────────────────────────────────
+function obNext(stepId) {
+  document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
 }
 
-function updateBalanceUI() {
-    if (!userData) return;
-    const eg = userData.egBalance || 0;
-    document.getElementById('egBalance').textContent = eg.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-    document.getElementById('headerBalance').textContent = Math.floor(eg).toLocaleString();
-    document.getElementById('egToUsdtHelper').textContent = `≈ $${(eg * RATES.egToUsdt).toFixed(4)} USDT`;
-    // TON/USDT balances are calculated from EG (no separate wallet)
-    document.getElementById('tonBalance').textContent = (eg * RATES.egToTon).toFixed(5);
-    document.getElementById('usdtBalance').textContent = (eg * RATES.egToUsdt).toFixed(4);
+function markJoined(cardId) {
+  setTimeout(() => {
+    const card = document.getElementById(cardId);
+    const status = document.getElementById(cardId+'-status');
+    if (card && status) { card.classList.add('joined'); status.textContent = '✓ Joined'; }
+  }, 1500);
 }
 
-// ── NAVIGATION ───────────────────────────────────────────────────
-function switchTab(tabId) {
-    document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
-    document.getElementById(`section-${tabId}`).classList.remove('hidden');
-    document.querySelectorAll('nav button').forEach(btn => {
-        btn.classList.remove('nav-active', 'border-amber-500');
-        btn.classList.add('border-transparent');
-        btn.querySelector('.nav-icon')?.classList.replace('text-amber-400', 'text-slate-500');
-        btn.querySelector('.nav-label')?.classList.replace('text-amber-400', 'text-slate-500');
-    });
-    const activeBtn = document.getElementById(`tab-${tabId}`);
-    activeBtn.classList.add('nav-active', 'border-amber-500');
-    activeBtn.classList.remove('border-transparent');
-    activeBtn.querySelector('.nav-icon')?.classList.replace('text-slate-500', 'text-amber-400');
-    activeBtn.querySelector('.nav-label')?.classList.replace('text-slate-500', 'text-amber-400');
-    if (tabId === 'market') { renderMarket(); renderMySpirits(); }
-    if (tabId === 'refer') { loadReferData(); }
-}
-
-function switchMarketTab(tab) {
-    const buyView = document.getElementById('marketBuyView');
-    const mineView = document.getElementById('marketMineView');
-    const buyBtn = document.getElementById('marketTab-buy');
-    const mineBtn = document.getElementById('marketTab-mine');
-    if (tab === 'buy') {
-        buyView.classList.remove('hidden'); mineView.classList.add('hidden');
-        buyBtn.classList.add('active-tab'); mineBtn.classList.remove('active-tab'); mineBtn.classList.add('text-slate-400');
+async function verifyAndEnter() {
+  try {
+    const res = await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+    const data = await res.json();
+    if (data.joined) {
+      localStorage.setItem('tep_onboarded_'+tgUser.id, '1');
+      await enterApp();
     } else {
-        mineView.classList.remove('hidden'); buyView.classList.add('hidden');
-        mineBtn.classList.add('active-tab'); buyBtn.classList.remove('active-tab'); buyBtn.classList.add('text-slate-400');
-        renderMySpirits();
+      const missing = [];
+      if (!data.channel) missing.push('@ton_edge_play');
+      if (!data.community) missing.push('@ton_edge_community');
+      showAlert('❌ Please join: ' + missing.join(' and '));
     }
+  } catch {
+    // If API fails, allow entry (don't block)
+    localStorage.setItem('tep_onboarded_'+tgUser.id, '1');
+    await enterApp();
+  }
 }
 
-// ── MARKET ───────────────────────────────────────────────────────
+async function enterApp() {
+  document.getElementById('onboard').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('hdr-id').textContent = tgUser.id;
+
+  const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param || '';
+  await registerOrLoad(startParam);
+  renderMarket();
+  loadTasks();
+  loadReferData();
+  checkMining();
+
+  // Periodic channel re-check (every 3 minutes)
+  setInterval(checkChannelStill, 3 * 60 * 1000);
+}
+
+async function checkChannelStill() {
+  try {
+    const res = await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+    const data = await res.json();
+    if (!data.joined) {
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('onboard').style.display = 'flex';
+      document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('active'));
+      document.getElementById('ob-channel').classList.add('active');
+      localStorage.removeItem('tep_onboarded_'+tgUser.id);
+    }
+  } catch {}
+}
+
+// ── DATA ──────────────────────────────────────────────────────
+async function registerOrLoad(referCode) {
+  try {
+    const res = await fetch(`${API}/user`, {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({telegramId:tgUser.id, username:tgUser.username||'', firstName:tgUser.first_name||'', referCode, initData})});
+    const data = await res.json();
+    if (data.success) { userData = data.user; updateUI(); }
+  } catch(e){console.error(e);}
+}
+
+async function refreshUser() {
+  try {
+    const res = await fetch(`${API}/user?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const data = await res.json();
+    if (data.success) { userData = data.user; updateUI(); }
+  } catch{}
+}
+
+function updateUI() {
+  if (!userData) return;
+  const eg = userData.egBalance || 0;
+  document.getElementById('bal-eg').textContent = eg.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('hdr-bal').textContent = Math.floor(eg).toLocaleString();
+  document.getElementById('bal-usd').textContent = `≈ $${(eg*RATES.egToUsdt).toFixed(4)} USDT`;
+  document.getElementById('bal-ton').innerHTML = `<i class="fa-solid fa-gem" style="font-size:11px;margin-right:3px"></i>${(eg*RATES.egToTon).toFixed(5)}`;
+  document.getElementById('bal-usdt').innerHTML = `<i class="fa-solid fa-dollar-sign" style="font-size:11px;margin-right:2px"></i>${(eg*RATES.egToUsdt).toFixed(4)}`;
+}
+
+// ── TABS ──────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('act'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('act'));
+  document.getElementById('sec-'+tab).classList.add('act');
+  document.getElementById('nav-'+tab).classList.add('act');
+  document.getElementById('scroll').scrollTop = 0;
+  if (tab==='market') { renderMarket(); renderMySpirits(); }
+  if (tab==='refer') loadReferData();
+}
+
+function switchMktTab(t) {
+  document.getElementById('mkt-buy-view').style.display = t==='buy'?'grid':'none';
+  document.getElementById('mkt-mine-view').style.display = t==='mine'?'block':'none';
+  document.getElementById('mkt-tab-buy').className = 'mkt-tab'+(t==='buy'?' act':'');
+  document.getElementById('mkt-tab-mine').className = 'mkt-tab'+(t==='mine'?' act':'');
+}
+
+// ── MARKET ────────────────────────────────────────────────────
 function renderMarket() {
-    const grid = document.getElementById('marketBuyView');
-    grid.innerHTML = '';
-    Object.values(PLANS).forEach(plan => {
-        const owned = (userData?.ownedSpirits?.[plan.id] || 0);
-        const card = document.createElement('div');
-        card.className = `spirit-card ${owned ? 'owned' : ''}`;
-        card.onclick = () => openSpiritSheet(plan.id);
-        const totalAds = Object.values(plan.ads).reduce((s,a)=>s+a.limit,0);
-        const dailyEG = Object.values(plan.ads).reduce((s,a)=>s+(a.limit*a.reward),0);
-        card.innerHTML = `
-            <div class="relative">
-                <img src="${plan.img}" alt="${plan.name}" class="w-full h-32 object-contain p-3 bg-slate-800/30">
-                <span class="absolute top-2 left-2 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${RARITY_BADGE[plan.rarity]}">${plan.rarity}</span>
-                ${owned ? `<span class="absolute top-2 right-2 bg-amber-500 text-slate-900 text-[8px] font-black px-1.5 py-0.5 rounded-full">×${owned}</span>` : ''}
-            </div>
-            <div class="p-3">
-                <div class="font-bold text-xs mb-0.5">${plan.name}</div>
-                <div class="text-[10px] text-amber-400 mb-1">+${dailyEG} EG/day</div>
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-1 text-xs font-bold text-amber-300">
-                        <i class="fa-solid fa-coins text-[10px]"></i> ${plan.cost.toLocaleString()}
-                    </div>
-                    <div class="text-[9px] text-slate-500">${totalAds} ads/day</div>
-                </div>
-            </div>`;
-        grid.appendChild(card);
-    });
+  const grid = document.getElementById('mkt-buy-view');
+  grid.innerHTML = '';
+  Object.values(PLANS).forEach(p => {
+    const owned = userData?.ownedSpirits?.[p.id] || 0;
+    const dailyEG = Object.values(p.ads).reduce((s,a)=>s+(a.limit*a.reward),0);
+    const totalAds = Object.values(p.ads).reduce((s,a)=>s+a.limit,0);
+    const el = document.createElement('div');
+    el.className = 'spirit-card' + (owned?' owned':'');
+    el.onclick = () => openSheet(p.id);
+    el.innerHTML = `
+      <div class="spirit-img-wrap">
+        <img class="spirit-img" src="${p.img}" alt="${p.name}" loading="lazy">
+        <span class="spirit-rarity rarity-${p.rarity}">${p.rarity}</span>
+        ${owned?`<span class="spirit-owned-badge">×${owned}</span>`:''}
+      </div>
+      <div class="spirit-info">
+        <div class="spirit-name">${p.name}</div>
+        <div class="spirit-daily">+${dailyEG} EG/day</div>
+        <div class="spirit-price">
+          <div class="spirit-price-val"><i class="fa-solid fa-coins" style="font-size:10px;color:var(--amber)"></i>${p.cost.toLocaleString()}</div>
+          <div class="spirit-ads">${totalAds} ads/day</div>
+        </div>
+      </div>`;
+    grid.appendChild(el);
+  });
 }
 
 function renderMySpirits() {
-    const container = document.getElementById('mySpiritsContainer');
-    container.innerHTML = '';
-    const ownedIds = Object.keys(userData?.ownedSpirits || {}).filter(id => userData.ownedSpirits[id] > 0);
-    if (!ownedIds.length) {
-        container.innerHTML = `<div class="text-center py-12 text-slate-600"><i class="fa-solid fa-ghost text-4xl mb-3"></i><div class="text-sm font-bold">No spirits yet</div><div class="text-xs mt-1">Buy from Spirit Market</div></div>`;
-        return;
-    }
-    ownedIds.forEach(id => {
-        const plan = PLANS[id];
-        const count = userData.ownedSpirits[id];
-        const dailyEG = Object.values(plan.ads).reduce((s,a)=>s+(a.limit*a.reward),0);
-        const el = document.createElement('div');
-        el.className = 'stat-box p-4 flex items-center gap-4';
-        el.innerHTML = `
-            <img src="${plan.img}" class="w-14 h-14 object-contain rounded-xl bg-slate-800/50 p-1">
-            <div class="flex-1">
-                <div class="text-xs font-bold">${plan.name}</div>
-                <div class="text-[10px] text-amber-400">+${dailyEG} EG/day potential</div>
-                <div class="text-[10px] text-slate-500 mt-0.5">Owned: <span class="text-white font-bold">×${count}</span></div>
-            </div>
-            <button onclick="openSpiritSheet(${id})" class="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg">Watch Ads</button>`;
-        container.appendChild(el);
-    });
+  const c = document.getElementById('mkt-mine-view');
+  const owned = Object.keys(userData?.ownedSpirits||{}).filter(id=>userData.ownedSpirits[id]>0);
+  if (!owned.length) { c.innerHTML = `<div style="text-align:center;padding:48px 0;color:var(--muted)"><i class="fa-solid fa-ghost" style="font-size:48px;margin-bottom:12px;display:block;opacity:.3"></i><div style="font-size:14px;font-weight:700">No spirits yet</div><div style="font-size:12px;margin-top:4px">Buy from Spirit Market</div></div>`; return; }
+  c.innerHTML = owned.map(id => {
+    const p = PLANS[id]; if(!p) return '';
+    const cnt = userData.ownedSpirits[id];
+    const dailyEG = Object.values(p.ads).reduce((s,a)=>s+(a.limit*a.reward),0);
+    return `<div class="card card-p" style="display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openSheet(${id})">
+      <img src="${p.img}" style="width:56px;height:56px;object-fit:contain;background:var(--bg3);border-radius:14px;padding:6px;filter:drop-shadow(0 2px 8px rgba(0,255,135,.15))">
+      <div style="flex:1"><div style="font-size:13px;font-weight:700">${p.name}</div><div style="font-size:11px;color:var(--g2)">+${dailyEG} EG/day potential</div><div style="font-size:10px;color:var(--muted);margin-top:2px">Owned: <b style="color:var(--text)">×${cnt}</b></div></div>
+      <button style="background:var(--g2);color:#000;font-size:11px;font-weight:800;padding:7px 13px;border-radius:9px;border:none;cursor:pointer">Watch Ads</button>
+    </div>`;
+  }).join('');
 }
 
-// ── SPIRIT SHEET ─────────────────────────────────────────────────
-function openSpiritSheet(planId) {
-    const plan = PLANS[planId];
-    activeSheetPlanId = planId;
-    document.getElementById('sheetImg').src = plan.img;
-    document.getElementById('sheetName').textContent = plan.name;
-    document.getElementById('sheetYield').textContent = `Mining Yield: ${plan.yield.toLocaleString()} EG`;
-    document.getElementById('sheetCost').textContent = plan.cost.toLocaleString() + ' EG';
-    document.getElementById('sheetOwned').textContent = userData?.ownedSpirits?.[planId] || 0;
-    document.getElementById('sheetDuration').textContent = plan.miningHours + 'h';
-    const badge = document.getElementById('sheetBadge');
-    badge.textContent = plan.rarity;
-    badge.className = `text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${RARITY_BADGE[plan.rarity]}`;
+// ── SPIRIT SHEET ──────────────────────────────────────────────
+function openSheet(planId) {
+  const p = PLANS[planId];
+  activeSheet = planId;
+  document.getElementById('sh-img').src = p.img;
+  document.getElementById('sh-name').textContent = p.name;
+  document.getElementById('sh-yield').textContent = `Mining Yield: ${p.yield.toLocaleString()} EG`;
+  document.getElementById('sh-cost').textContent = p.cost.toLocaleString() + ' EG';
+  document.getElementById('sh-owned').textContent = userData?.ownedSpirits?.[planId] || 0;
+  document.getElementById('sh-dur').textContent = p.miningHours + 'h';
+  const rb = document.getElementById('sh-rarity');
+  rb.textContent = p.rarity;
+  rb.className = `sheet-rarity-badge rarity-${p.rarity}`;
 
-    // Render ads rows
-    const todayWatched = userData?.todayAds?.[planId] || {};
-    ['adsgram','monetag','gigapub'].forEach(network => {
-        const cfg = plan.ads[network];
-        const watched = todayWatched[network] || 0;
-        const done = watched >= cfg.limit;
-        document.getElementById(`${network}-reward-label`).textContent = `+${cfg.reward} EG/ad`;
-        document.getElementById(`${network}-progress-label`).textContent = `${watched}/${cfg.limit}`;
-        document.getElementById(`${network}-bar`).style.width = `${(watched/cfg.limit)*100}%`;
-        const btn = document.getElementById(`${network}-btn`);
-        btn.disabled = done;
-        btn.textContent = done ? '✓ Done for today' : '▶ Watch Ad';
-        if (done) btn.classList.add('opacity-40');
-        else btn.classList.remove('opacity-40');
-    });
+  // Ads rows
+  const today = new Date().toISOString().slice(0,10);
+  const todayWatched = userData?.todayAds?.[today]?.[planId] || {};
+  const nets = [{id:'adsgram',name:'⚡ AdsGram',cls:'adsgram',color:'var(--amber)'},{id:'monetag',name:'📺 Monetag',cls:'monetag',color:'#60a5fa'},{id:'gigapub',name:'🌐 GigaPub',cls:'gigapub',color:'var(--g1)'}];
+  document.getElementById('sh-ads').innerHTML = nets.map(n => {
+    const cfg = p.ads[n.id];
+    const watched = todayWatched[n.id] || 0;
+    const done = watched >= cfg.limit;
+    const pct = (watched/cfg.limit)*100;
+    return `<div class="ad-row">
+      <div class="ad-row-hdr">
+        <span class="ad-net-name" style="color:${n.color}">${n.name}</span>
+        <span class="ad-net-prog" style="color:var(--muted)">${watched}/${cfg.limit} · +${cfg.reward} EG/ad</span>
+      </div>
+      <div class="ad-bar-bg"><div class="ad-bar-fill" style="width:${pct}%;background:${n.color}"></div></div>
+      <button onclick="watchAd('${n.id}')" class="ad-watch-btn ${n.cls}" ${done?'disabled':''}>
+        ${done?'✓ Done for today':'▶ Watch Ad — +'+cfg.reward+' EG'}
+      </button>
+    </div>`;
+  }).join('');
 
-    document.getElementById('spiritSheet').classList.add('open');
-    document.getElementById('sheetBackdrop').classList.add('open');
+  document.getElementById('sheet-bg').classList.add('open');
+  document.getElementById('spirit-sheet').classList.add('open');
 }
 
-function closeSpiritSheet() {
-    document.getElementById('spiritSheet').classList.remove('open');
-    document.getElementById('sheetBackdrop').classList.remove('open');
-    activeSheetPlanId = null;
+function closeSheet() {
+  document.getElementById('sheet-bg').classList.remove('open');
+  document.getElementById('spirit-sheet').classList.remove('open');
+  activeSheet = null;
 }
 
-function attemptBuyFromSheet() {
-    if (activeSheetPlanId) { closeSpiritSheet(); attemptBuyPlan(activeSheetPlanId); }
+async function buySpirit() {
+  if (!activeSheet) return;
+  const p = PLANS[activeSheet];
+  const bal = userData?.egBalance || 0;
+  if (bal < p.cost) { toast('error', `Need ${p.cost.toLocaleString()} EG`); return; }
+  const r = await Swal.fire({title:`Buy ${p.name}?`,html:`<div style="color:#5a8a6e;font-size:13px">Cost: <b style="color:#f59e0b">${p.cost.toLocaleString()} EG</b><br>Watch ads daily to earn rewards.</div>`,showCancelButton:true,confirmButtonText:'Buy',confirmButtonColor:'#00c96e',cancelButtonColor:'#1a3326',background:'#0b1610',color:'#e8f5ee'});
+  if (!r.isConfirmed) return;
+  try {
+    const res = await fetch(`${API}/mining`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'buy',planId:String(activeSheet)})});
+    const data = await res.json();
+    if (data.success) { toast('success',`${p.name} purchased!`); closeSheet(); await refreshUser(); renderMarket(); }
+    else toast('error', data.error||'Purchase failed');
+  } catch { toast('error','Network error'); }
 }
 
-// ── BUY PLAN ─────────────────────────────────────────────────────
-async function attemptBuyPlan(planId) {
-    const plan = PLANS[planId];
-    const bal = userData?.egBalance || 0;
-    if (bal < plan.cost) { toast('error', `Need ${plan.cost.toLocaleString()} EG`); return; }
-    const r = await Swal.fire({
-        title: `Buy ${plan.name}?`,
-        html: `<div style="color:#94a3b8;font-size:13px">Cost: <strong style="color:#f59e0b">${plan.cost.toLocaleString()} EG</strong><br>Watch ads daily to earn EG rewards.</div>`,
-        showCancelButton: true, confirmButtonText: 'Buy', confirmButtonColor: '#f59e0b', cancelButtonColor: '#1e293b', background: '#0d1421', color: '#fff'
-    });
-    if (!r.isConfirmed) return;
-
-    try {
-        const res = await fetch(`${API}/mining`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegramId: tgUser.id, initData, action: 'buy', planId: String(planId) })
-        });
-        const data = await res.json();
-        if (data.success) {
-            // Deduct locally while refresh loads
-            userData.egBalance -= plan.cost;
-            if (!userData.ownedSpirits) userData.ownedSpirits = {};
-            userData.ownedSpirits[planId] = (userData.ownedSpirits[planId] || 0) + 1;
-            updateBalanceUI();
-            renderMarket();
-            toast('success', `${plan.name} purchased! Watch ads daily to earn.`);
-            await refreshUser();
-        } else { toast('error', data.error || 'Purchase failed'); }
-    } catch(e) { toast('error', 'Network error'); }
-}
-
-// ── AD WATCH ─────────────────────────────────────────────────────
+// ── ADS ───────────────────────────────────────────────────────
 function watchAd(network) {
-    if (!activeSheetPlanId) return;
-    const plan = PLANS[activeSheetPlanId];
-    const owned = userData?.ownedSpirits?.[activeSheetPlanId] || 0;
-    if (!owned) { toast('error', 'Buy this spirit first'); return; }
-    currentAdNetwork = network;
-
-    // Show ad overlay
-    const names = { adsgram: '⚡ AdsGram', monetag: '📺 Monetag', gigapub: '🌐 GigaPub' };
-    document.getElementById('adNetworkName').textContent = names[network].split(' ')[1];
-    document.getElementById('adTitle').textContent = `${names[network]} Ad`;
-    document.getElementById('adTapBox').classList.add('hidden');
-    document.getElementById('adCountdown').textContent = '5s';
-    document.getElementById('adProgressCircle').style.strokeDashoffset = '213.628';
-    document.getElementById('adOverlay').classList.remove('hidden');
-    document.getElementById('adOverlay').classList.add('flex');
-
-    // TODO: When ads network IDs are ready, trigger real ad here
-    // AdsGram: window.Adsgram?.show(); etc.
-
-    let sec = 5;
-    const circumference = 213.628;
-    adTimer = setInterval(() => {
-        sec--;
-        document.getElementById('adCountdown').textContent = sec + 's';
-        document.getElementById('adProgressCircle').style.strokeDashoffset = circumference - (circumference * ((5-sec)/5));
-        if (sec <= 0) {
-            clearInterval(adTimer);
-            document.getElementById('adTapBox').classList.remove('hidden');
-        }
-    }, 1000);
+  if (!activeSheet) return;
+  const owned = userData?.ownedSpirits?.[activeSheet] || 0;
+  if (!owned) { toast('error','Buy this spirit first'); return; }
+  currentAdNet = network;
+  const names = {adsgram:'⚡ AdsGram',monetag:'📺 Monetag',gigapub:'🌐 GigaPub'};
+  const colors = {adsgram:'#f59e0b',monetag:'#60a5fa',gigapub:'#00ff87'};
+  const badge = document.getElementById('ad-badge');
+  badge.textContent = names[network];
+  badge.style.background = colors[network]+'22';
+  badge.style.color = colors[network];
+  badge.style.border = `1px solid ${colors[network]}44`;
+  document.getElementById('ad-title').textContent = names[network] + ' Ad';
+  document.getElementById('ad-collect').style.display = 'none';
+  document.getElementById('ad-num').textContent = '5';
+  document.getElementById('ad-circle').style.strokeDashoffset = '213.6';
+  document.getElementById('ad-overlay').classList.add('open');
+  let sec = 5;
+  adTimer = setInterval(() => {
+    sec--;
+    document.getElementById('ad-num').textContent = sec;
+    document.getElementById('ad-circle').style.strokeDashoffset = 213.6 - (213.6*((5-sec)/5));
+    if (sec<=0) { clearInterval(adTimer); document.getElementById('ad-collect').style.display='block'; }
+  },1000);
 }
 
-async function completeAdWatch() {
-    document.getElementById('adOverlay').classList.add('hidden');
-    document.getElementById('adOverlay').classList.remove('flex');
-
-    const planId = activeSheetPlanId;
-    const network = currentAdNetwork;
-    currentAdNetwork = null;
-
-    try {
-        const res = await fetch(`${API}/mining`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegramId: tgUser.id, initData, action: 'ad', planId: String(planId), network })
-        });
-        const data = await res.json();
-        if (data.success) {
-            const reward = data.reward || 0;
-            toast('success', `+${reward} EG earned!`);
-            await refreshUser();
-            // Re-open sheet with updated data
-            openSpiritSheet(planId);
-        } else { toast('error', data.error || 'Ad reward failed'); }
-    } catch(e) { toast('error', 'Network error'); }
+async function collectAd() {
+  document.getElementById('ad-overlay').classList.remove('open');
+  const planId = activeSheet; const network = currentAdNet;
+  currentAdNet = null;
+  try {
+    const res = await fetch(`${API}/mining`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'ad',planId:String(planId),network})});
+    const data = await res.json();
+    if (data.success) { toast('success',`+${data.reward} EG earned!`); await refreshUser(); openSheet(planId); }
+    else toast('error', data.error||'Ad reward failed');
+  } catch { toast('error','Network error'); }
 }
 
-// ── DAILY CLAIM ──────────────────────────────────────────────────
-async function claimDailyReward() {
-    try {
-        const res = await fetch(`${API}/daily`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegramId: tgUser.id, initData, action: 'daily' })
-        });
-        const data = await res.json();
-        if (data.success) { toast('success', `+${data.reward} EG daily reward!`); await refreshUser(); }
-        else toast('warning', data.error || 'Already claimed');
-    } catch(e) { toast('error', 'Network error'); }
+// ── DAILY / PROMO ─────────────────────────────────────────────
+async function claimDaily() {
+  try {
+    const res = await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'daily'})});
+    const data = await res.json();
+    if (data.success) { toast('success',`+${data.reward} EG daily reward!`); await refreshUser(); }
+    else toast('warning', data.error||'Already claimed');
+  } catch { toast('error','Network error'); }
 }
 
-// ── PROMO CODE ───────────────────────────────────────────────────
-function focusPromoInput() {
-    switchTab('home');
-    setTimeout(() => document.getElementById('promoCodeInput')?.focus(), 100);
+async function redeemPromo() {
+  const code = document.getElementById('promo-input').value.trim();
+  if (!code) { toast('warning','Enter a promo code'); return; }
+  try {
+    const res = await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'promo',code})});
+    const data = await res.json();
+    if (data.success) { document.getElementById('promo-input').value=''; toast('success',`+${data.reward} EG from promo!`); await refreshUser(); }
+    else toast('error', data.error||'Invalid code');
+  } catch { toast('error','Network error'); }
 }
 
-async function redeemPromoCode() {
-    const code = document.getElementById('promoCodeInput').value.trim().toUpperCase();
-    if (!code) { toast('warning', 'Enter a promo code'); return; }
-
-    // First check validity before any ad
-    try {
-        const res = await fetch(`${API}/daily`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegramId: tgUser.id, initData, action: 'promo', code })
-        });
-        const data = await res.json();
-        if (data.success) {
-            document.getElementById('promoCodeInput').value = '';
-            toast('success', `+${data.reward} EG from promo!`);
-            await refreshUser();
-        } else toast('error', data.error || 'Invalid promo code');
-    } catch(e) { toast('error', 'Network error'); }
-}
-
-// ── TASKS ────────────────────────────────────────────────────────
+// ── TASKS ─────────────────────────────────────────────────────
 async function loadTasks() {
+  try {
+    const res = await fetch(`${API}/tasks?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const data = await res.json();
+    if (!data.success) return;
+    const icons={telegram:'fa-brands fa-telegram',social:'fa-brands fa-twitter',youtube:'fa-brands fa-youtube',share:'fa-solid fa-share-nodes',api:'fa-brands fa-telegram'};
+    const colors={telegram:'rgba(0,255,135,.1)',social:'rgba(100,160,255,.1)',youtube:'rgba(239,68,68,.1)',api:'rgba(0,255,135,.1)'};
+    const icColors={telegram:'var(--g1)',social:'#60a5fa',youtube:'#ef4444',api:'var(--g1)'};
+    const list = document.getElementById('tasks-list');
+    if (!data.tasks.length) { list.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--muted);font-size:13px">No tasks available yet</div>'; return; }
+    list.innerHTML = data.tasks.map(t => `
+      <div class="task-item${t.completed?' done':''}" id="task-${t.id}">
+        <div class="task-ico" style="background:${colors[t.type]||'rgba(0,255,135,.08)'}"><i class="${icons[t.type]||'fa-solid fa-star'}" style="color:${icColors[t.type]||'var(--g1)'}"></i></div>
+        <div class="task-text"><div class="task-name">${t.title}</div><div class="task-reward">+${t.reward} EG</div></div>
+        <div class="task-action">${t.completed
+          ? `<span class="task-done-badge">✓ Done</span>`
+          : `<button class="task-start-btn" id="tbtn-${t.id}" onclick="doTask('${t.id}','${t.link||''}')">Start</button>`
+        }</div>
+      </div>`).join('');
+  } catch{}
+}
+
+async function doTask(taskId, link) {
+  const btn = document.getElementById(`tbtn-${taskId}`);
+  if (btn) { btn.textContent='Checking...'; btn.disabled=true; }
+  if (link) {
+    if (window.Telegram?.WebApp) window.Telegram.WebApp.openTelegramLink(link);
+    else window.open(link,'_blank');
+  }
+  setTimeout(async () => {
     try {
-        const res = await fetch(`${API}/tasks?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
-        const data = await res.json();
-        if (!data.success) return;
-        const list = document.getElementById('tasksList');
-        if (!data.tasks.length) { list.innerHTML = '<div class="text-center py-8 text-slate-600 text-xs">No tasks available yet</div>'; return; }
-        const icons = { telegram:'fa-brands fa-telegram text-sky-400', social:'fa-brands fa-twitter text-slate-300', youtube:'fa-brands fa-youtube text-red-400', share:'fa-solid fa-share-nodes text-emerald-400' };
-        list.innerHTML = data.tasks.map(task => `
-            <div class="action-btn justify-between" id="task-${task.id}-container">
-                <div class="flex items-center gap-3">
-                    <span class="bg-slate-800 w-9 h-9 rounded-xl flex items-center justify-center"><i class="${icons[task.type] || 'fa-solid fa-star text-amber-400'}"></i></span>
-                    <div>
-                        <div class="text-xs font-bold">${task.title}</div>
-                        <div class="text-[10px] text-amber-400">+${task.reward} EG</div>
-                    </div>
-                </div>
-                ${task.completed
-                    ? `<span class="bg-emerald-800/50 text-emerald-400 text-[10px] font-bold py-1.5 px-3.5 rounded-lg">✓ Done</span>`
-                    : `<button id="taskBtn-${task.id}" onclick="performTask('${task.id}','${task.link}')" class="bg-sky-600 text-white text-[10px] font-bold py-1.5 px-3.5 rounded-lg transition">Start</button>`
-                }
-            </div>`).join('');
-    } catch(e) {}
+      const res = await fetch(`${API}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,taskId})});
+      const data = await res.json();
+      if (data.success) { toast('success',`+${data.reward} EG!`); await refreshUser(); loadTasks(); }
+      else if (btn) { btn.textContent='Start'; btn.disabled=false; toast('error',data.error||'Task failed'); }
+    } catch { if(btn){btn.textContent='Start';btn.disabled=false;} }
+  }, 3000);
 }
 
-async function performTask(taskId, link) {
-    const btn = document.getElementById(`taskBtn-${taskId}`);
-    if (btn) { btn.textContent = 'Verifying...'; btn.disabled = true; }
-    if (link) {
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.openTelegramLink(link);
-        else window.open(link, '_blank');
-    }
-    setTimeout(async () => {
-        try {
-            const res = await fetch(`${API}/tasks`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telegramId: tgUser.id, initData, taskId })
-            });
-            const data = await res.json();
-            if (data.success) { toast('success', `+${data.reward} EG earned!`); await refreshUser(); loadTasks(); }
-            else if (btn) { btn.textContent = 'Start'; btn.disabled = false; toast('error', data.error || 'Task failed'); }
-        } catch(e) { if(btn){btn.textContent='Start';btn.disabled=false;} }
-    }, 3000);
-}
-
-// ── REFER ────────────────────────────────────────────────────────
+// ── REFER ─────────────────────────────────────────────────────
 async function loadReferData() {
-    try {
-        const res = await fetch(`${API}/tasks?telegramId=${tgUser.id}&type=refer&initData=${encodeURIComponent(initData)}`);
-        const data = await res.json();
-        if (!data.success) return;
-        document.getElementById('totalRefs').textContent = data.totalReferred;
-        document.getElementById('totalRefEarned').textContent = data.totalRefEarned.toLocaleString() + ' EG';
-        document.getElementById('refLinkInput').value = data.referLink;
-        const list = document.getElementById('referredList');
-        if (!data.referredUsers.length) { list.innerHTML = '<div class="text-slate-600">No referrals yet</div>'; return; }
-        list.innerHTML = data.referredUsers.map((u,i) => `
-            <div class="flex justify-between items-center py-1.5 border-b border-slate-800/50">
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-slate-600">${i+1}.</span>
-                    <span class="text-xs">${u.firstName} ${u.username ? '@'+u.username : ''}</span>
-                </div>
-                <span class="text-[10px] text-slate-500">${new Date(u.createdAt).toLocaleDateString()}</span>
-            </div>`).join('');
-    } catch(e) {}
+  try {
+    const res = await fetch(`${API}/tasks?telegramId=${tgUser.id}&type=refer&initData=${encodeURIComponent(initData)}`);
+    const data = await res.json();
+    if (!data.success) return;
+    document.getElementById('ref-total').textContent = data.totalReferred||0;
+    document.getElementById('ref-earned').textContent = (data.totalRefEarned||0).toLocaleString()+' EG';
+    document.getElementById('ref-link').value = data.referLink||'';
+    const list = document.getElementById('ref-list');
+    if (!data.referredUsers?.length) { list.innerHTML = '<div style="color:var(--muted);font-size:12px">No referrals yet</div>'; return; }
+    list.innerHTML = data.referredUsers.map((u,i)=>`<div class="ref-user-item"><span style="color:var(--muted)">${i+1}. ${u.firstName||''} ${u.username?'@'+u.username:''}</span><span style="color:var(--muted);font-size:10px">${new Date(u.createdAt).toLocaleDateString()}</span></div>`).join('');
+  } catch{}
 }
 
-function copyRefLink() {
-    const val = document.getElementById('refLinkInput').value;
-    navigator.clipboard.writeText(val).catch(()=>{});
-    toast('success', 'Ref link copied!');
+function copyRef() { navigator.clipboard.writeText(document.getElementById('ref-link').value).catch(()=>{}); toast('success','Copied!'); }
+function shareRef() {
+  const link = document.getElementById('ref-link').value;
+  const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🥚 Join Ton Edge Play! Earn EG coins, watch ads & withdraw crypto!')}`;
+  if (window.Telegram?.WebApp) window.Telegram.WebApp.openTelegramLink(url);
+  else window.open(url,'_blank');
 }
 
-function shareRefLink() {
-    const link = document.getElementById('refLinkInput').value;
-    const text = '🥚 Join Ton Edge Play and earn EG coins! Mine eggs, watch ads & withdraw crypto!';
-    if (window.Telegram?.WebApp) window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
-    else window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`, '_blank');
+// ── WITHDRAW ──────────────────────────────────────────────────
+function updateWdPreview() {
+  const method = document.getElementById('wd-method').value;
+  const eg = parseFloat(document.getElementById('wd-eg').value)||0;
+  const label = document.getElementById('wd-addr-label');
+  const addr = document.getElementById('wd-addr');
+  if (method==='binance') { label.textContent='Binance UID (numbers only)'; addr.placeholder='Enter Binance UID'; addr.inputMode='numeric'; }
+  else { label.textContent='TON Wallet Address'; addr.placeholder='UQ... or EQ...'; addr.inputMode='text'; }
+  const after = eg*(1-FEE);
+  const out = method==='binance' ? `$${(after*RATES.egToUsdt).toFixed(4)} USDT` : `${(after*RATES.egToTon).toFixed(5)} TON`;
+  document.getElementById('wd-preview').textContent = eg ? `${eg.toLocaleString()} EG → ${out} (after 5% fee)` : 'Enter amount to preview';
 }
 
-// ── CONVERT ──────────────────────────────────────────────────────
-function openConvertModal() { document.getElementById('convertModal').classList.remove('hidden'); document.getElementById('convertModal').classList.add('flex'); }
-function closeConvertModal() { document.getElementById('convertModal').classList.add('hidden'); document.getElementById('convertModal').classList.remove('flex'); }
-
-function updateConvertPreview() {
-    const amt = parseFloat(document.getElementById('convertAmount').value) || 0;
-    const target = document.getElementById('convertTarget').value;
-    const out = target === 'TON' ? (amt * RATES.egToTon).toFixed(5) + ' TON' : (amt * RATES.egToUsdt).toFixed(4) + ' USDT';
-    document.getElementById('convertPreview').textContent = `${amt.toLocaleString()} EG → ${out}`;
+async function submitWithdraw() {
+  const method = document.getElementById('wd-method').value;
+  const address = document.getElementById('wd-addr').value.trim();
+  const egAmount = parseFloat(document.getElementById('wd-eg').value);
+  if (!address) { toast('error','Enter address/UID'); return; }
+  if (!egAmount || egAmount<2000) { toast('error','Minimum 2,000 EG'); return; }
+  if (!userData||egAmount>userData.egBalance) { toast('error','Insufficient balance'); return; }
+  try {
+    const res = await fetch(`${API}/withdraw`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,method,address,egAmount})});
+    const data = await res.json();
+    if (data.success) { closeModal('wd-modal'); toast('success','Withdrawal submitted!'); await refreshUser(); }
+    else toast('error',data.error||'Failed');
+  } catch { toast('error','Network error'); }
 }
 
-function processConversion() {
-    const amt = parseFloat(document.getElementById('convertAmount').value);
-    if (!amt || amt < 500) { toast('error', 'Minimum 500 EG'); return; }
-    if (!userData || amt > userData.egBalance) { toast('error', 'Insufficient EG'); return; }
-    const target = document.getElementById('convertTarget').value;
-    const out = target === 'TON' ? (amt * RATES.egToTon).toFixed(5) + ' TON' : (amt * RATES.egToUsdt).toFixed(4) + ' USDT';
-    closeConvertModal();
-    toast('success', `Converted: ${out}`);
+// ── CONVERT ───────────────────────────────────────────────────
+function updateCvPreview() {
+  const eg = parseFloat(document.getElementById('cv-eg').value)||0;
+  const to = document.getElementById('cv-to').value;
+  const out = to==='TON' ? `${(eg*RATES.egToTon).toFixed(5)} TON` : `$${(eg*RATES.egToUsdt).toFixed(4)} USDT`;
+  document.getElementById('cv-preview').textContent = eg ? `${eg.toLocaleString()} EG → ${out}` : 'Enter amount to preview';
 }
 
-// ── WITHDRAW ─────────────────────────────────────────────────────
-function openWithdrawModal() { document.getElementById('withdrawModal').classList.remove('hidden'); document.getElementById('withdrawModal').classList.add('flex'); }
-function closeWithdrawModal() { document.getElementById('withdrawModal').classList.add('hidden'); document.getElementById('withdrawModal').classList.remove('flex'); }
-
-function updateWithdrawInfo() {
-    const method = document.getElementById('withdrawMethod').value;
-    const label = document.getElementById('addressLabel');
-    const addr = document.getElementById('withdrawAddress');
-    if (method === 'binance') { label.textContent = 'Binance UID (numbers only)'; addr.placeholder = 'e.g. 123456789'; }
-    else { label.textContent = 'TON Wallet Address'; addr.placeholder = 'UQ... or EQ...'; }
-    updateWithdrawPreview();
+function submitConvert() {
+  const eg = parseFloat(document.getElementById('cv-eg').value);
+  if (!eg||eg<500) { toast('error','Minimum 500 EG'); return; }
+  if (!userData||eg>userData.egBalance) { toast('error','Insufficient EG'); return; }
+  const to = document.getElementById('cv-to').value;
+  const out = to==='TON'?`${(eg*RATES.egToTon).toFixed(5)} TON`:`$${(eg*RATES.egToUsdt).toFixed(4)} USDT`;
+  closeModal('cv-modal');
+  toast('success',`Converted: ${out}`);
 }
 
-function updateWithdrawPreview() {
-    const eg = parseFloat(document.getElementById('withdrawEgAmount').value) || 0;
-    const method = document.getElementById('withdrawMethod').value;
-    const afterFee = eg * (1 - FEE);
-    const out = method === 'binance' ? `$${(afterFee * RATES.egToUsdt).toFixed(4)} USDT` : `${(afterFee * RATES.egToTon).toFixed(5)} TON`;
-    document.getElementById('withdrawPreview').textContent = `${eg.toLocaleString()} EG → ${out} (after 5% fee)`;
-}
-
-async function processWithdrawal() {
-    const method = document.getElementById('withdrawMethod').value;
-    const address = document.getElementById('withdrawAddress').value.trim();
-    const egAmount = parseFloat(document.getElementById('withdrawEgAmount').value);
-
-    if (!address) { toast('error', 'Enter address/UID'); return; }
-    if (!egAmount) { toast('error', 'Enter amount'); return; }
-
-    const min = method === 'binance' ? MIN_WITHDRAW_EG_BINANCE : MIN_WITHDRAW_EG_TON;
-    if (egAmount < min) { toast('error', `Minimum ${min.toLocaleString()} EG`); return; }
-    if (!userData || egAmount > userData.egBalance) { toast('error', 'Insufficient EG balance'); return; }
-
-    try {
-        const res = await fetch(`${API}/withdraw`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegramId: tgUser.id, initData, method, address, egAmount })
-        });
-        const data = await res.json();
-        if (data.success) {
-            closeWithdrawModal();
-            toast('success', 'Withdrawal submitted! Processing in 24-48h');
-            await refreshUser();
-        } else toast('error', data.error || 'Withdrawal failed');
-    } catch(e) { toast('error', 'Network error'); }
-}
-
-// ── MINING RESTORE ───────────────────────────────────────────────
-function checkMiningRestore() {
-    if (!userData?.activePlan || userData.activePlan.status !== 'mining') {
-        document.getElementById('miningQueueCard').classList.add('hidden');
-        return;
+// ── MINING ────────────────────────────────────────────────────
+function checkMining() {
+  if (!userData?.activePlan||userData.activePlan.status!=='mining') { document.getElementById('mining-card').style.display='none'; return; }
+  document.getElementById('mining-card').style.display='block';
+  document.getElementById('mine-plan-name').textContent = PLANS[userData.activePlan.planId]?.name||'';
+  const tick = setInterval(async () => {
+    const fin = new Date(userData.miningFinishTime);
+    const diff = fin - Date.now();
+    if (diff<=0) {
+      clearInterval(tick);
+      const res = await fetch(`${API}/mining`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'claim'})});
+      const data = await res.json();
+      if (data.success) { toast('success',`+${data.reward} EG mining reward!`); await refreshUser(); document.getElementById('mining-card').style.display='none'; }
+    } else {
+      const total = userData.activePlan.miningHours*3600;
+      const elapsed = total - Math.ceil(diff/1000);
+      const pct = (elapsed/total)*100;
+      const earned = Math.floor((userData.activePlan.yield/total)*elapsed);
+      document.getElementById('mine-bar').style.width = pct+'%';
+      document.getElementById('mine-earned').textContent = earned.toLocaleString();
+      const h=Math.floor(diff/3600000), m=Math.floor((diff%3600000)/60000);
+      document.getElementById('mine-eta').textContent = h>0?`${h}h ${m}m`:`${m}m`;
     }
-    document.getElementById('miningQueueCard').classList.remove('hidden');
-    document.getElementById('miningPlanName').textContent = PLANS[userData.activePlan.planId]?.name || '';
-    const tick = setInterval(async () => {
-        const finishTime = new Date(userData.miningFinishTime);
-        const diff = finishTime - Date.now();
-        if (diff <= 0) {
-            clearInterval(tick);
-            // Claim mining reward
-            const res = await fetch(`${API}/mining`, {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ telegramId: tgUser.id, initData, action: 'claim' })
-            });
-            const data = await res.json();
-            if (data.success) { toast('success', `+${data.reward} EG mining reward!`); await refreshUser(); document.getElementById('miningQueueCard').classList.add('hidden'); }
-        } else {
-            const totalSec = userData.activePlan.miningHours * 3600;
-            const elapsed = totalSec - Math.ceil(diff/1000);
-            const pct = (elapsed/totalSec)*100;
-            const earned = Math.floor((userData.activePlan.yield/totalSec)*elapsed);
-            document.getElementById('miningProgressBar').style.width = `${pct}%`;
-            document.getElementById('minedAmount').textContent = earned.toLocaleString();
-            const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000);
-            document.getElementById('miningTimeLeft').textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
-        }
-    }, 5000);
+  }, 5000);
 }
 
-// ── TRANSACTIONS ─────────────────────────────────────────────────
-function openTransactionModal() {
-    const list = document.getElementById('txList');
-    list.innerHTML = '<div class="text-xs text-slate-600 text-center py-4">Transaction history coming soon</div>';
-    document.getElementById('txModal').classList.remove('hidden');
-    document.getElementById('txModal').classList.add('flex');
-}
-function closeTransactionModal() { document.getElementById('txModal').classList.add('hidden'); document.getElementById('txModal').classList.remove('flex'); }
+// ── MODALS ────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
 
-// ── TOAST ─────────────────────────────────────────────────────────
+// ── TOAST ─────────────────────────────────────────────────────
 function toast(icon, title) {
-    Swal.fire({ toast:true, position:'top-end', icon, title, showConfirmButton:false, timer:2500, background:'#0d1421', color:'#fff',
-        iconColor: icon==='success'?'#4ade80':icon==='error'?'#f87171':'#f59e0b' });
+  Swal.fire({toast:true,position:'top-end',icon,title,showConfirmButton:false,timer:2500,background:'var(--bg2)',color:'var(--text)',iconColor:icon==='success'?'#00ff87':icon==='error'?'#ef4444':'#f59e0b'});
+}
+function showAlert(msg) {
+  if (window.Telegram?.WebApp) window.Telegram.WebApp.showAlert(msg);
+  else alert(msg);
 }
 </script>
 </body>
