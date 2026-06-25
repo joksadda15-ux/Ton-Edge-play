@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Ton Edge Play</title>
 <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+<script src='//libtl.com/sdk.js' data-zone='11192250' data-sdk='show_11192250'></script>
+<script src="https://ad.gigapub.tech/script?id=7070"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
@@ -296,6 +299,24 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overs
 </style>
 </head>
 <body>
+
+<!-- ══ LOADING SCREEN ══════════════════════════════════════════ -->
+<div id="loading-screen" style="position:fixed;inset:0;z-index:999;background:#060d0a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px">
+  <div style="position:relative;width:80px;height:80px">
+    <div style="width:80px;height:80px;background:linear-gradient(135deg,#00ff87,#00c96e);border-radius:50% 50% 50% 50%/60% 60% 40% 40%;box-shadow:0 0 40px rgba(0,255,135,.5);animation:eggPulse 1.5s ease-in-out infinite"></div>
+    <div style="position:absolute;top:15%;left:20%;width:30%;height:20%;background:rgba(255,255,255,.4);border-radius:50%;filter:blur(3px)"></div>
+  </div>
+  <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:800;color:#fff">Ton <span style="color:#00ff87">Edge</span> Play</div>
+  <div style="display:flex;gap:6px" id="load-dots">
+    <div style="width:6px;height:6px;background:#00ff87;border-radius:50%;animation:dotBounce 1.2s ease-in-out infinite 0s"></div>
+    <div style="width:6px;height:6px;background:#00ff87;border-radius:50%;animation:dotBounce 1.2s ease-in-out infinite .2s"></div>
+    <div style="width:6px;height:6px;background:#00ff87;border-radius:50%;animation:dotBounce 1.2s ease-in-out infinite .4s"></div>
+  </div>
+</div>
+<style>
+@keyframes eggPulse{0%,100%{transform:scale(1);box-shadow:0 0 40px rgba(0,255,135,.5)}50%{transform:scale(1.08);box-shadow:0 0 60px rgba(0,255,135,.7)}}
+@keyframes dotBounce{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-8px);opacity:1}}
+</style>
 
 <!-- ══ ONBOARDING ══════════════════════════════════════════════ -->
 <div id="onboard">
@@ -660,6 +681,9 @@ async function main() {
     await new Promise(r => setTimeout(r, 1500));
   }
 
+  // Hide loading
+  document.getElementById('loading-screen').style.display = 'none';
+
   // Block browser access
   if (!tg.initDataUnsafe?.user) {
     document.body.innerHTML = \`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px;background:#060d0a;"><div style="font-size:56px">📱</div><h3 style="color:#5a8a6e;font-size:15px;text-align:center;padding:0 32px;line-height:1.6">Please open this app<br>inside <b style="color:#00ff87">Telegram</b></h3></div>\`;
@@ -675,10 +699,34 @@ async function main() {
     return;
   }
 
+  // Hide loading screen
+  document.getElementById('loading-screen').style.display = 'none';
+
   // Check if already onboarded
-  if (localStorage.getItem('tep_onboarded_'+tgUser.id)) {
+  const onboarded = localStorage.getItem('tep_onboarded_'+tgUser.id);
+  const openCount = parseInt(localStorage.getItem('tep_opens_'+tgUser.id)||'0') + 1;
+  localStorage.setItem('tep_opens_'+tgUser.id, openCount);
+
+  if (onboarded) {
+    // Show interstitial ad on 2nd+ open (not first)
+    if (openCount > 1) {
+      await showInterstitialAd();
+    }
     await enterApp();
   }
+}
+
+function showInterstitialAd() {
+  return new Promise((resolve) => {
+    if (window.Adsgram) {
+      window.Adsgram.init({ blockId: 'int-36170' })
+        .show()
+        .then(resolve)
+        .catch(resolve); // always continue even if ad fails
+    } else {
+      resolve(); // SDK not loaded, skip
+    }
+  });
 }
 
 window.addEventListener('DOMContentLoaded', main);
@@ -718,6 +766,7 @@ async function verifyAndEnter() {
 }
 
 async function enterApp() {
+  document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('onboard').style.display = 'none';
   document.getElementById('app').classList.add('show');
   document.getElementById('hdr-id').textContent = tgUser.id;
@@ -899,11 +948,57 @@ async function buySpirit() {
 }
 
 // ── ADS ───────────────────────────────────────────────────────
-function watchAd(network) {
+function showRealAd(network) {
+  return new Promise((resolve, reject) => {
+    if (network === 'adsgram') {
+      if (window.Adsgram) {
+        window.Adsgram.init({ blockId: '36169' }).show().then(resolve).catch(reject);
+      } else { reject(new Error('AdsGram not loaded')); }
+    } else if (network === 'monetag') {
+      if (typeof show_11192250 === 'function') {
+        show_11192250().then(resolve).catch(reject);
+      } else { reject(new Error('Monetag not loaded')); }
+    } else if (network === 'gigapub') {
+      if (typeof window.showGiga === 'function') {
+        window.showGiga().then(resolve).catch(reject);
+      } else { reject(new Error('GigaPub not loaded')); }
+    } else { reject(new Error('Unknown network')); }
+  });
+}
+
+async function watchAd(network) {
   if (!activeSheet) return;
   const owned = userData?.ownedSpirits?.[activeSheet] || 0;
   if (!owned) { toast('error','Buy this spirit first'); return; }
   currentAdNet = network;
+
+  // Show our loading overlay while real ad loads
+  const names = {adsgram:'⚡ AdsGram',monetag:'📺 Monetag',gigapub:'🌐 GigaPub'};
+  const colors = {adsgram:'#f59e0b',monetag:'#60a5fa',gigapub:'#00ff87'};
+  const badge = document.getElementById('ad-badge');
+  badge.textContent = names[network];
+  badge.style.background = colors[network]+'22';
+  badge.style.color = colors[network];
+  badge.style.border = `1px solid ${colors[network]}44`;
+  document.getElementById('ad-title').textContent = 'Loading ' + names[network] + '...';
+  document.getElementById('ad-collect').style.display = 'none';
+  document.getElementById('ad-num').textContent = '...';
+  document.getElementById('ad-circle').style.strokeDashoffset = '213.6';
+  document.getElementById('ad-overlay').classList.add('open');
+
+  try {
+    await showRealAd(network);
+    // Ad completed — give reward
+    document.getElementById('ad-overlay').classList.remove('open');
+    await giveAdReward(network);
+  } catch(e) {
+    document.getElementById('ad-overlay').classList.remove('open');
+    // Fallback: show manual timer if real ad fails
+    showFallbackAdTimer(network);
+  }
+}
+
+function showFallbackAdTimer(network) {
   const names = {adsgram:'⚡ AdsGram',monetag:'📺 Monetag',gigapub:'🌐 GigaPub'};
   const colors = {adsgram:'#f59e0b',monetag:'#60a5fa',gigapub:'#00ff87'};
   const badge = document.getElementById('ad-badge');
@@ -925,16 +1020,21 @@ function watchAd(network) {
   },1000);
 }
 
-async function collectAd() {
-  document.getElementById('ad-overlay').classList.remove('open');
-  const planId = activeSheet; const network = currentAdNet;
+async function giveAdReward(network) {
+  const planId = activeSheet; 
+  const net = network || currentAdNet;
   currentAdNet = null;
   try {
-    const res = await fetch(`${API}/mining`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'ad',planId:String(planId),network})});
+    const res = await fetch(`${API}/mining`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'ad',planId:String(planId),network:net})});
     const data = await res.json();
-    if (data.success) { toast('success',`+${data.reward} EG earned!`); await refreshUser(); openSheet(planId); }
+    if (data.success) { toast('success',`+${data.reward} EG earned!`); await refreshUser(); if(activeSheet) openSheet(planId); }
     else toast('error', data.error||'Ad reward failed');
   } catch { toast('error','Network error'); }
+}
+
+async function collectAd() {
+  document.getElementById('ad-overlay').classList.remove('open');
+  await giveAdReward(currentAdNet);
 }
 
 // ── DAILY / PROMO ─────────────────────────────────────────────
