@@ -2,7 +2,7 @@ import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
 const PLANS = {
-  1: { name:'Bird Spirit',    cost:300,   yield:800,   miningHours:4,  ads:{ adsgram:{limit:1,reward:20}, monetag:{limit:1,reward:20}, gigapub:{limit:1,reward:20} } },
+  1: { name:'Bird Spirit',    cost:0,     free:true,  yield:800,   miningHours:4,  ads:{ adsgram:{limit:1,reward:20}, monetag:{limit:1,reward:20}, gigapub:{limit:1,reward:20} } },
   2: { name:'Chick Spirit',   cost:700,   yield:2000,  miningHours:6,  ads:{ adsgram:{limit:1,reward:30}, monetag:{limit:2,reward:20}, gigapub:{limit:2,reward:20} } },
   3: { name:'Duck Spirit',    cost:1200,  yield:4500,  miningHours:8,  ads:{ adsgram:{limit:2,reward:35}, monetag:{limit:3,reward:20}, gigapub:{limit:3,reward:20} } },
   4: { name:'Turtle Spirit',  cost:2000,  yield:10000, miningHours:12, ads:{ adsgram:{limit:3,reward:40}, monetag:{limit:4,reward:25}, gigapub:{limit:4,reward:25} } },
@@ -40,13 +40,24 @@ export default async function handler(req, res) {
     if (action === 'buy') {
       const plan = PLANS[planId];
       if (!plan) return res.status(400).json({ error: 'Invalid plan' });
-      if (user.egBalance < plan.cost) return res.status(400).json({ error: 'Insufficient balance' });
 
+      const alreadyOwned = user.ownedSpirits?.[planId] > 0;
+
+      if (plan.free) {
+        // Free plan — can only claim once
+        if (alreadyOwned) return res.status(400).json({ error: 'Already claimed free spirit' });
+        await users.updateOne(
+          { telegramId: tgId },
+          { $set: { [`ownedSpirits.${planId}`]: 1 } }
+        );
+        return res.status(200).json({ success: true, plan, free: true });
+      }
+
+      // Paid plan — permanent (can buy multiple times to increase owned count)
+      if (user.egBalance < plan.cost) return res.status(400).json({ error: 'Insufficient balance' });
       await users.updateOne(
         { telegramId: tgId },
-        {
-          $inc: { egBalance: -plan.cost, [`ownedSpirits.${planId}`]: 1 },
-        }
+        { $inc: { egBalance: -plan.cost, [`ownedSpirits.${planId}`]: 1 } }
       );
 
       // Give referrer 120 EG for spirit purchase
@@ -57,7 +68,7 @@ export default async function handler(req, res) {
         );
       }
 
-      return res.status(200).json({ success: true, plan });
+      return res.status(200).json({ success: true, plan, permanent: true });
     }
 
     // ── action: ad ────────────────────────────────────────────────
