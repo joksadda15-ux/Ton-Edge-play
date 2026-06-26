@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Ton Edge Play</title>
 <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
-<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
 <script src='//libtl.com/sdk.js' data-zone='11192250' data-sdk='show_11192250'></script>
 <script src="https://ad.gigapub.tech/script?id=7070"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -215,12 +214,21 @@ input,select,button{font-family:'Inter',sans-serif}
 .act-badge{font-size:11px;font-weight:700;background:linear-gradient(155deg,var(--g0),var(--g2));color:#04190f;border:1px solid rgba(255,255,255,.2);padding:6px 14px;border-radius:9px;box-shadow:0 4px 14px -3px rgba(0,255,135,.4)}
 
 /* Promo */
-.promo-box{background:linear-gradient(155deg,var(--card2),var(--card));border:1px solid var(--border);border-radius:17px;padding:14px;margin-bottom:11px;box-shadow:var(--glass-edge-top),0 8px 18px -12px rgba(0,0,0,.5)}
-.promo-row{display:flex;gap:8px;margin-top:10px}
-.promo-inp{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:11px;padding:10px 12px;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;letter-spacing:2px;box-shadow:inset 0 2px 6px rgba(0,0,0,.3)}
-.promo-inp:focus{border-color:var(--amber);box-shadow:inset 0 2px 6px rgba(0,0,0,.3),0 0 0 3px rgba(255,176,32,.15)}
-.promo-inp::placeholder{color:var(--muted2);letter-spacing:0}
-.promo-go{background:linear-gradient(155deg,#ffd166,var(--amber));color:#241200;font-weight:800;font-size:12px;padding:10px 16px;border-radius:11px;border:1px solid rgba(255,255,255,.25);white-space:nowrap;box-shadow:0 5px 16px -4px rgba(255,176,32,.45),var(--glass-edge-top)}
+.promo-box{position:relative;overflow:hidden;border-radius:18px;padding:16px;margin-bottom:11px;background:linear-gradient(135deg,#0e1f18 0%,#111a2a 50%,#1a0e1a 100%);border:1px solid transparent;background-clip:padding-box;}
+.promo-box::before{content:'';position:absolute;inset:0;border-radius:18px;padding:1px;background:linear-gradient(135deg,#00ff87,#7c3aed,#f59e0b,#00c9ff);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;}
+.promo-box::after{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(124,58,237,.15),transparent 70%);border-radius:50%;pointer-events:none;}
+.promo-title-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.promo-title-ico{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;box-shadow:0 4px 12px rgba(124,58,237,.4)}
+.promo-title-text{font-size:13px;font-weight:800;color:var(--text)}
+.promo-title-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.promo-row{display:flex;gap:8px}
+.promo-inp{flex:1;background:rgba(0,0,0,.4);border:1px solid rgba(124,58,237,.3);border-radius:12px;padding:12px 14px;font-size:15px;color:var(--text);outline:none;transition:all .2s;letter-spacing:4px;font-weight:700;text-align:center}
+.promo-inp:focus{border-color:#a855f7;box-shadow:0 0 0 3px rgba(124,58,237,.2),inset 0 0 20px rgba(124,58,237,.05)}
+.promo-inp::placeholder{color:var(--muted2);letter-spacing:1px;font-weight:400;font-size:12px;text-align:center}
+.promo-go{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-weight:800;font-size:12px;padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.2);white-space:nowrap;box-shadow:0 5px 18px -4px rgba(124,58,237,.5);transition:all .2s}
+.promo-go:active{transform:scale(.96)}
+.promo-hints{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.promo-hint-tag{font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:.5px}
 
 /* MARKET */
 .mkt-tabs{display:flex;background:var(--card);border:1px solid var(--border);border-radius:15px;padding:4px;gap:4px;margin-bottom:13px;box-shadow:var(--glass-edge-top),inset 0 2px 6px rgba(0,0,0,.3)}
@@ -472,10 +480,21 @@ input,select,button{font-family:'Inter',sans-serif}
       </div>
 
       <div class="promo-box">
-        <div class="sec-title"><i class="fa-solid fa-ticket" style="color:var(--amber)"></i>Promo Code</div>
+        <div class="promo-title-row">
+          <div class="promo-title-ico">🎟</div>
+          <div>
+            <div class="promo-title-text">Promo Code</div>
+            <div class="promo-title-sub">Enter 6-digit code to claim EG reward</div>
+          </div>
+        </div>
         <div class="promo-row">
-          <input class="promo-inp" id="promo-inp" placeholder="000000" maxlength="6" inputmode="numeric">
-          <button class="promo-go g3d" onclick="redeemPromo()">Apply</button>
+          <input class="promo-inp" id="promo-inp" placeholder="Enter code" maxlength="6" inputmode="numeric">
+          <button class="promo-go" onclick="redeemPromo()">Apply</button>
+        </div>
+        <div class="promo-hints">
+          <span class="promo-hint-tag" style="background:rgba(0,255,135,.1);color:var(--g1)">🎯 Daily codes</span>
+          <span class="promo-hint-tag" style="background:rgba(124,58,237,.1);color:#a855f7">✨ Special events</span>
+          <span class="promo-hint-tag" style="background:rgba(245,158,11,.1);color:var(--amber)">📢 Official channel</span>
         </div>
       </div>
     </div>
@@ -576,6 +595,11 @@ input,select,button{font-family:'Inter',sans-serif}
     <input class="mdl-inp" id="wd-eg" type="number" placeholder="Min 2,000 EG" oninput="updateWdPrev()">
     <div class="mdl-prev" id="wd-prev">Enter amount to preview</div>
     <div style="font-size:10px;color:var(--amber);margin-top:6px"><i class="fa-solid fa-triangle-exclamation"></i> 5% fee deducted automatically</div>
+    <div style="background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.15);border-radius:10px;padding:10px;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.7">
+      <div style="color:var(--g1);font-weight:700;margin-bottom:4px"><i class="fa-solid fa-road"></i> Ads Roadmap</div>
+      <div>Per $0.1 USDT (2,000 EG) = <b style="color:var(--text)">5 ads</b> required</div>
+      <div>1 withdrawal per day · Resets at midnight</div>
+    </div>
     <button class="mdl-sub g3d" onclick="submitWd()">Submit Withdrawal</button>
   </div>
 </div>
@@ -618,13 +642,20 @@ const RATES={egToTon:.5/20000,egToUsdt:1/20000};
 const FEE=.05;
 const BOT_LINK='http://t.me/TonEdge_play_bot/playearn';
 const PLANS={
-  1:{id:1,name:'Bird Spirit',  rarity:'Common',  cost:300, yield:800,  miningHours:4,  img:'https://i.postimg.cc/R0mnCM86/IMG-20260621-172622.png',       ads:{adsgram:{limit:1,reward:20},monetag:{limit:1,reward:20},gigapub:{limit:1,reward:20}}},
-  2:{id:2,name:'Chick Spirit', rarity:'Uncommon',cost:700, yield:2000, miningHours:6,  img:'https://i.postimg.cc/zfHntJMB/Generated-Image-June-21-2026-1-59PM-(1).png', ads:{adsgram:{limit:1,reward:30},monetag:{limit:2,reward:20},gigapub:{limit:2,reward:20}}},
-  3:{id:3,name:'Duck Spirit',  rarity:'Rare',    cost:1200,yield:4500, miningHours:8,  img:'https://i.postimg.cc/RV2yp0pK/Generated-Image-June-21-2026-2-03PM.png',     ads:{adsgram:{limit:2,reward:35},monetag:{limit:3,reward:20},gigapub:{limit:3,reward:20}}},
-  4:{id:4,name:'Turtle Spirit',rarity:'Epic',    cost:2000,yield:10000,miningHours:12, img:'https://i.postimg.cc/K8RLjGm7/Generated-Image-June-21-2026-2-01PM-(1).png', ads:{adsgram:{limit:3,reward:40},monetag:{limit:4,reward:25},gigapub:{limit:4,reward:25}}},
-  5:{id:5,name:'Serpent Spirit',rarity:'Legendary',cost:5000,yield:28000,miningHours:18,img:'https://i.postimg.cc/vTYxsMPc/Generated-Image-June-21-2026-2-01PM.png',    ads:{adsgram:{limit:4,reward:50},monetag:{limit:5,reward:30},gigapub:{limit:5,reward:30}}},
-  6:{id:6,name:'Dragon Spirit', rarity:'Mythic',cost:7000,yield:70000,miningHours:24, img:'https://i.postimg.cc/ncL9SFj1/Generated-Image-June-21-2026-1-59PM.png',      ads:{adsgram:{limit:5,reward:60},monetag:{limit:6,reward:35},gigapub:{limit:6,reward:35}}},
+  1:{id:1,name:'Bird Spirit',  rarity:'Common',  cost:0,    free:true,  yield:800,  img:'https://i.postimg.cc/R0mnCM86/IMG-20260621-172622.png',       ads:{monetag:{limit:1,reward:20},gigapub:{limit:1,reward:20}}},
+  2:{id:2,name:'Chick Spirit', rarity:'Uncommon',cost:700,  free:false, yield:2000, img:'https://i.postimg.cc/zfHntJMB/Generated-Image-June-21-2026-1-59PM-(1).png', ads:{monetag:{limit:2,reward:20},gigapub:{limit:2,reward:20}}},
+  3:{id:3,name:'Duck Spirit',  rarity:'Rare',    cost:1200, free:false, yield:4500, img:'https://i.postimg.cc/RV2yp0pK/Generated-Image-June-21-2026-2-03PM.png',     ads:{monetag:{limit:3,reward:20},gigapub:{limit:3,reward:20}}},
+  4:{id:4,name:'Turtle Spirit',rarity:'Epic',    cost:2000, free:false, yield:10000,img:'https://i.postimg.cc/K8RLjGm7/Generated-Image-June-21-2026-2-01PM-(1).png', ads:{monetag:{limit:4,reward:25},gigapub:{limit:4,reward:25}}},
+  5:{id:5,name:'Serpent Spirit',rarity:'Legendary',cost:5000,free:false,yield:28000,img:'https://i.postimg.cc/vTYxsMPc/Generated-Image-June-21-2026-2-01PM.png',    ads:{monetag:{limit:5,reward:30},gigapub:{limit:5,reward:30}}},
+  6:{id:6,name:'Dragon Spirit', rarity:'Mythic',cost:7000,free:false,  yield:70000,img:'https://i.postimg.cc/ncL9SFj1/Generated-Image-June-21-2026-1-59PM.png',      ads:{monetag:{limit:6,reward:35},gigapub:{limit:6,reward:35}}},
 };
+// AdsGram: currently disabled (re-enable when approved)
+const ADSGRAM_ENABLED = false; // set true when AdsGram is re-approved
+const ADSGRAM_BLOCK = '36169';
+const ADSGRAM_INT = 'int-36170';
+// Withdraw roadmap: per $0.1 USDT = 5 ads required
+const WD_ADS_PER_01_USDT = 5;
+const EG_PER_01_USDT = 2000; // 20000 EG = $1, so 2000 EG = $0.1
 let tgUser=null,initData='',userData=null,activeSheet=null,curAdNet=null,adTimer=null;
 
 // ── DEVICE FINGERPRINT ──────────────────────────────────────
@@ -684,8 +715,8 @@ async function main(){
 
 function showInterstitial(){
   return new Promise(resolve=>{
-    if(window.Adsgram){
-      window.Adsgram.init({blockId:'int-36170'}).show().then(resolve).catch(resolve);
+    if(ADSGRAM_ENABLED&&window.Adsgram){
+      window.Adsgram.init({blockId:ADSGRAM_INT}).show().then(resolve).catch(resolve);
     } else resolve();
   });
 }
@@ -697,7 +728,25 @@ function obGo(id){
   document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('act'));
   document.getElementById(id).classList.add('act');
 }
-function markCh(id){setTimeout(()=>{const c=document.getElementById(id);const b=document.getElementById(id+'-b');if(c&&b){c.classList.add('joined');b.textContent='✓ Joined';}},1500);}
+function markCh(id){
+  // Visual feedback after clicking
+  setTimeout(()=>{
+    const b=document.getElementById(id+'-b');
+    if(b)b.textContent='Checking...';
+  },500);
+  // Verify with server after 3s (time for user to actually join)
+  setTimeout(async()=>{
+    try{
+      const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+      const d=await r.json();
+      const joined=id==='ch1'?d.channel:d.community;
+      const card=document.getElementById(id);
+      const badge=document.getElementById(id+'-b');
+      if(joined){card.classList.add('joined');if(badge)badge.textContent='✓ Joined';}
+      else{if(badge)badge.textContent='Join';}
+    }catch{const b=document.getElementById(id+'-b');if(b)b.textContent='Join';}
+  },3000);
+}
 
 async function verifyJoin(){
   try{
@@ -824,25 +873,62 @@ function openSheet(planId){
   const rb=qs('#sh-rar');rb.textContent=p.rarity;rb.className=`sh-rar r-${p.rarity}`;
   const today=new Date().toISOString().slice(0,10);
   const tw=userData?.todayAds?.[today]?.[planId]||{};
-  const nets=[{id:'adsgram',name:'⚡ AdsGram',col:'var(--amber)'},{id:'monetag',name:'📺 Monetag',col:'var(--blue)'},{id:'gigapub',name:'🌐 GigaPub',col:'var(--g1)'}];
+  // AdsGram locked — re-enable when ADSGRAM_ENABLED = true
+  const nets=[
+    ...(ADSGRAM_ENABLED?[{id:'adsgram',name:'⚡ AdsGram',col:'var(--amber)'}]:[]),
+    {id:'monetag',name:'📺 Monetag',col:'var(--blue)'},
+    {id:'gigapub',name:'🌐 GigaPub',col:'var(--g1)'}
+  ];
   qs('#sh-ads').innerHTML=nets.map(n=>{
     const cfg=p.ads[n.id];const w=tw[n.id]||0;const done=w>=cfg.limit;
     return `<div class="ad-row"><div class="ad-row-hdr"><span class="ad-net" style="color:${n.col}">${n.name}</span><span class="ad-prog-txt">${w}/${cfg.limit} · +${cfg.reward} EG/ad</span></div><div class="ad-bar-bg"><div class="ad-bar" style="width:${(w/cfg.limit)*100}%;background:${n.col}"></div></div><button onclick="watchAd('${n.id}')" class="ad-btn g3d" style="color:${n.col}" ${done?'disabled':''}>${done?'✓ Done for today':'▶ Watch Ad — +'+cfg.reward+' EG'}</button></div>`;
   }).join('');
   qs('#sh-bg').classList.add('op');qs('#sh').classList.add('op');
+  // Update buy button for free vs paid
+  const buyBtn=qs('#sh-buy-btn');
+  if(buyBtn){
+    const alreadyOwned=(userData?.ownedSpirits?.[p.id]||0)>0;
+    if(p.free){
+      buyBtn.innerHTML=alreadyOwned?'<i class="fa-solid fa-check"></i> Already Owned':'<i class="fa-solid fa-gift"></i> Claim Free Spirit';
+      buyBtn.disabled=alreadyOwned;
+      buyBtn.style.opacity=alreadyOwned?'.4':'1';
+    } else {
+      buyBtn.innerHTML=`<i class="fa-solid fa-cart-shopping"></i> Buy Permanently — ${p.cost.toLocaleString()} EG`;
+      buyBtn.disabled=false;buyBtn.style.opacity='1';
+    }
+  }
 }
 function closeSheet(){qs('#sh-bg').classList.remove('op');qs('#sh').classList.remove('op');activeSheet=null;}
 
 async function buySpirit(){
   if(!activeSheet)return;
   const p=PLANS[activeSheet];const bal=userData?.egBalance||0;
+
+  // Plan 1 is FREE — auto claim without confirmation
+  if(p.free){
+    const alreadyOwned=userData?.ownedSpirits?.[p.id]>0;
+    if(alreadyOwned){toast('warning','You already have this free spirit!');return;}
+    try{
+      const res=await fetch(`${API}/mining`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'buy',planId:String(activeSheet)})});
+      const d=await res.json();
+      if(d.success){toast('success',`${p.name} claimed for free! Start watching ads.`);closeSheet();await refreshUser();renderMarket();}
+      else toast('error',d.error||'Failed to claim');
+    }catch{toast('error','Network error');}
+    return;
+  }
+
+  // Paid plans — permanent purchase
   if(bal<p.cost){toast('error',`Need ${p.cost.toLocaleString()} EG`);return;}
-  const r=await Swal.fire({title:`Buy ${p.name}?`,html:`<div style="color:#5a8a6e;font-size:13px">Cost: <b style="color:#f59e0b">${p.cost.toLocaleString()} EG</b><br>Watch ads daily to earn rewards.</div>`,showCancelButton:true,confirmButtonText:'Buy',confirmButtonColor:'#00c96e',cancelButtonColor:'#1a3326',background:'#0b1610',color:'#e8f5ee'});
+  const r=await Swal.fire({
+    title:`Buy ${p.name}?`,
+    html:`<div style="color:#5a8a6e;font-size:13px">Cost: <b style="color:#f59e0b">${p.cost.toLocaleString()} EG</b><br><span style="color:#00c96e">♾ Permanent — watch ads daily forever</span></div>`,
+    showCancelButton:true,confirmButtonText:'Buy Permanently',confirmButtonColor:'#00c96e',cancelButtonColor:'#1a3326',background:'#0b1610',color:'#e8f5ee'
+  });
   if(!r.isConfirmed)return;
   try{
     const res=await fetch(`${API}/mining`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'buy',planId:String(activeSheet)})});
     const d=await res.json();
-    if(d.success){toast('success',`${p.name} purchased!`);closeSheet();await refreshUser();renderMarket();}
+    if(d.success){toast('success',`${p.name} purchased permanently!`);closeSheet();await refreshUser();renderMarket();}
     else toast('error',d.error||'Purchase failed');
   }catch{toast('error','Network error');}
 }
@@ -851,8 +937,8 @@ async function buySpirit(){
 function showRealAd(network){
   return new Promise((resolve,reject)=>{
     if(network==='adsgram'){
-      if(window.Adsgram){window.Adsgram.init({blockId:'36169'}).show().then(resolve).catch(reject);}
-      else reject(new Error('AdsGram SDK not loaded'));
+      if(ADSGRAM_ENABLED&&window.Adsgram){window.Adsgram.init({blockId:ADSGRAM_BLOCK}).show().then(resolve).catch(reject);}
+      else reject(new Error('AdsGram disabled'));
     } else if(network==='monetag'){
       if(typeof show_11192250==='function'){show_11192250().then(resolve).catch(reject);}
       else reject(new Error('Monetag SDK not loaded'));
@@ -867,7 +953,7 @@ async function watchAd(network){
   if(!activeSheet)return;
   if(!(userData?.ownedSpirits?.[activeSheet]>0)){toast('error','Buy this spirit first');return;}
   curAdNet=network;
-  const names={adsgram:'⚡ AdsGram',monetag:'📺 Monetag',gigapub:'🌐 GigaPub'};
+  const names={adsgram:'⚡ AdsGram',monetag:'📺 Monetag',gigapub:'🌐 GigaPub'}; // adsgram locked
   const cols={adsgram:'var(--amber)',monetag:'var(--blue)',gigapub:'var(--g1)'};
   const b=qs('#ad-badge');
   b.textContent=names[network];b.style.background=cols[network]+'22';b.style.color=cols[network];b.style.border=`1px solid ${cols[network]}44`;
@@ -994,18 +1080,49 @@ function updateWdPrev(){
   if(m==='binance'){lbl.textContent='Binance UID (numbers only)';addr.placeholder='Enter Binance UID';addr.inputMode='numeric';}
   else{lbl.textContent='TON Wallet Address';addr.placeholder='UQ... or EQ...';addr.inputMode='text';}
   const after=eg*(1-FEE);
-  qs('#wd-prev').textContent=eg?`${eg.toLocaleString()} EG → ${m==='binance'?'$'+(after*RATES.egToUsdt).toFixed(4)+' USDT':(after*RATES.egToTon).toFixed(5)+' TON'} (after 5% fee)`:'Enter amount to preview';
+  if(!eg){qs('#wd-prev').textContent='Enter amount to preview';return;}
+  const adsReq=Math.ceil(eg/EG_PER_01_USDT)*WD_ADS_PER_01_USDT;
+  const out=m==='binance'?'$'+(after*RATES.egToUsdt).toFixed(4)+' USDT':(after*RATES.egToTon).toFixed(5)+' TON';
+  qs('#wd-prev').innerHTML=`${eg.toLocaleString()} EG → <b>${out}</b> (after 5% fee)<br><span style="color:var(--amber);font-size:10px"><i class="fa-solid fa-eye"></i> Requires <b>${adsReq} ads</b> watched today</span>`;
 }
+function calcWdAdsRequired(egAmount){
+  // Per $0.1 USDT = 5 ads required
+  // 2000 EG = $0.1, so per 2000 EG = 5 ads
+  const units=Math.ceil(egAmount/EG_PER_01_USDT);
+  return units*WD_ADS_PER_01_USDT;
+}
+
 async function submitWd(){
   const m=qs('#wd-method').value,addr=qs('#wd-addr').value.trim(),eg=parseFloat(qs('#wd-eg').value);
   if(!addr){toast('error','Enter address/UID');return;}
   if(!eg||eg<2000){toast('error','Minimum 2,000 EG');return;}
   if(!userData||eg>userData.egBalance){toast('error','Insufficient balance');return;}
+
+  // Daily withdraw limit — 1 per day
+  const todayKey=new Date().toISOString().slice(0,10);
+  const lastWd=localStorage.getItem('tep_wd_date_'+tgUser.id);
+  if(lastWd===todayKey){toast('error','Daily limit reached. 1 withdrawal per day.');return;}
+
+  // Ads roadmap check
+  const adsRequired=calcWdAdsRequired(eg);
+  const todayAds=userData?.todayAds?.[todayKey]||{};
+  let totalTodayAds=0;
+  Object.values(todayAds).forEach(planAds=>{Object.values(planAds).forEach(n=>totalTodayAds+=n);});
+
+  if(totalTodayAds<adsRequired){
+    toast('error',`Need ${adsRequired} ads watched today. You watched ${totalTodayAds}. Watch ${adsRequired-totalTodayAds} more ads first.`);
+    return;
+  }
+
   try{
     const r=await fetch(`${API}/withdraw`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,method:m,address:addr,egAmount:eg})});
     const d=await r.json();
-    if(d.success){closeM('wd-m');toast('success','Withdrawal submitted! 24-48h processing.');await refreshUser();}
-    else toast('error',d.error||'Failed');
+    if(d.success){
+      localStorage.setItem('tep_wd_date_'+tgUser.id,todayKey);
+      closeM('wd-m');
+      toast('success','Withdrawal submitted! Processing in 24-48h.');
+      await refreshUser();
+    } else toast('error',d.error||'Failed');
   }catch{toast('error','Network error');}
 }
 function updateCvPrev(){
