@@ -3,11 +3,11 @@ import { verifyTelegramInit } from '../lib/auth.js';
 
 const PLANS = {
   1: { name:'Bird Spirit',    cost:0,     free:true,  yield:800,   miningHours:4,  ads:{ adsgram:{limit:1,reward:20}, monetag:{limit:1,reward:20}, gigapub:{limit:1,reward:20} } },
-  2: { name:'Chick Spirit',   cost:700,   yield:2000,  miningHours:6,  ads:{ adsgram:{limit:1,reward:30}, monetag:{limit:2,reward:20}, gigapub:{limit:2,reward:20} } },
-  3: { name:'Duck Spirit',    cost:1200,  yield:4500,  miningHours:8,  ads:{ adsgram:{limit:2,reward:35}, monetag:{limit:3,reward:20}, gigapub:{limit:3,reward:20} } },
-  4: { name:'Turtle Spirit',  cost:2000,  yield:10000, miningHours:12, ads:{ adsgram:{limit:3,reward:40}, monetag:{limit:4,reward:25}, gigapub:{limit:4,reward:25} } },
-  5: { name:'Serpent Spirit', cost:5000,  yield:28000, miningHours:18, ads:{ adsgram:{limit:4,reward:50}, monetag:{limit:5,reward:30}, gigapub:{limit:5,reward:30} } },
-  6: { name:'Dragon Spirit',  cost:7000,  yield:70000, miningHours:24, ads:{ adsgram:{limit:5,reward:60}, monetag:{limit:6,reward:35}, gigapub:{limit:6,reward:35} } },
+  2: { name:'Chick Spirit',   cost:300,   yield:2000,  miningHours:6,  ads:{ adsgram:{limit:1,reward:30}, monetag:{limit:2,reward:20}, gigapub:{limit:2,reward:20} } },
+  3: { name:'Duck Spirit',    cost:800,  yield:4500,  miningHours:8,  ads:{ adsgram:{limit:2,reward:35}, monetag:{limit:3,reward:20}, gigapub:{limit:3,reward:20} } },
+  4: { name:'Turtle Spirit',  cost:1500,  yield:10000, miningHours:12, ads:{ adsgram:{limit:3,reward:40}, monetag:{limit:4,reward:25}, gigapub:{limit:4,reward:25} } },
+  5: { name:'Serpent Spirit', cost:3000,  yield:28000, miningHours:18, ads:{ adsgram:{limit:4,reward:50}, monetag:{limit:5,reward:30}, gigapub:{limit:5,reward:30} } },
+  6: { name:'Dragon Spirit',  cost:5000,  yield:70000, miningHours:24, ads:{ adsgram:{limit:5,reward:60}, monetag:{limit:6,reward:35}, gigapub:{limit:6,reward:35} } },
 };
 
 function todayKey() {
