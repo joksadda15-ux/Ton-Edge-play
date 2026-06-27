@@ -154,6 +154,14 @@ input,select,button{font-family:'Inter',sans-serif}
 .nb span{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;transition:color .2s}
 .nb.act{border-top-color:var(--g1)}
 .nb.act i{color:var(--g1);filter:drop-shadow(0 0 8px rgba(0,255,135,.6));transform:translateY(-2px)}
+#nb-home.act{border-top-color:#00ff87}
+#nb-home.act i,#nb-home.act span{color:#00ff87}
+#nb-market.act{border-top-color:#f59e0b}
+#nb-market.act i,#nb-market.act span{color:#f59e0b;text-shadow:0 0 8px rgba(245,158,11,.4)}
+#nb-tasks.act{border-top-color:#60a5fa}
+#nb-tasks.act i,#nb-tasks.act span{color:#60a5fa;text-shadow:0 0 8px rgba(96,165,250,.4)}
+#nb-refer.act{border-top-color:#a855f7}
+#nb-refer.act i,#nb-refer.act span{color:#a855f7;text-shadow:0 0 8px rgba(168,85,247,.4)}
 .nb.act span{color:var(--g1)}
 .nb:active i{transform:scale(.85)}
 
@@ -643,11 +651,11 @@ const FEE=.05;
 const BOT_LINK='http://t.me/TonEdge_play_bot/playearn';
 const PLANS={
   1:{id:1,name:'Bird Spirit',  rarity:'Common',  cost:0,    free:true,  yield:800,  img:'https://i.postimg.cc/R0mnCM86/IMG-20260621-172622.png',       ads:{monetag:{limit:1,reward:20},gigapub:{limit:1,reward:20}}},
-  2:{id:2,name:'Chick Spirit', rarity:'Uncommon',cost:700,  free:false, yield:2000, img:'https://i.postimg.cc/zfHntJMB/Generated-Image-June-21-2026-1-59PM-(1).png', ads:{monetag:{limit:2,reward:20},gigapub:{limit:2,reward:20}}},
-  3:{id:3,name:'Duck Spirit',  rarity:'Rare',    cost:1200, free:false, yield:4500, img:'https://i.postimg.cc/RV2yp0pK/Generated-Image-June-21-2026-2-03PM.png',     ads:{monetag:{limit:3,reward:20},gigapub:{limit:3,reward:20}}},
-  4:{id:4,name:'Turtle Spirit',rarity:'Epic',    cost:2000, free:false, yield:10000,img:'https://i.postimg.cc/K8RLjGm7/Generated-Image-June-21-2026-2-01PM-(1).png', ads:{monetag:{limit:4,reward:25},gigapub:{limit:4,reward:25}}},
-  5:{id:5,name:'Serpent Spirit',rarity:'Legendary',cost:5000,free:false,yield:28000,img:'https://i.postimg.cc/vTYxsMPc/Generated-Image-June-21-2026-2-01PM.png',    ads:{monetag:{limit:5,reward:30},gigapub:{limit:5,reward:30}}},
-  6:{id:6,name:'Dragon Spirit', rarity:'Mythic',cost:7000,free:false,  yield:70000,img:'https://i.postimg.cc/ncL9SFj1/Generated-Image-June-21-2026-1-59PM.png',      ads:{monetag:{limit:6,reward:35},gigapub:{limit:6,reward:35}}},
+  2:{id:2,name:'Chick Spirit', rarity:'Uncommon',cost:300,  free:false, yield:2000, img:'https://i.postimg.cc/zfHntJMB/Generated-Image-June-21-2026-1-59PM-(1).png', ads:{monetag:{limit:2,reward:20},gigapub:{limit:2,reward:20}}},
+  3:{id:3,name:'Duck Spirit',  rarity:'Rare',    cost:800, free:false, yield:4500, img:'https://i.postimg.cc/RV2yp0pK/Generated-Image-June-21-2026-2-03PM.png',     ads:{monetag:{limit:3,reward:20},gigapub:{limit:3,reward:20}}},
+  4:{id:4,name:'Turtle Spirit',rarity:'Epic',    cost:1500, free:false, yield:10000,img:'https://i.postimg.cc/K8RLjGm7/Generated-Image-June-21-2026-2-01PM-(1).png', ads:{monetag:{limit:4,reward:25},gigapub:{limit:4,reward:25}}},
+  5:{id:5,name:'Serpent Spirit',rarity:'Legendary',cost:3000,free:false,yield:28000,img:'https://i.postimg.cc/vTYxsMPc/Generated-Image-June-21-2026-2-01PM.png',    ads:{monetag:{limit:5,reward:30},gigapub:{limit:5,reward:30}}},
+  6:{id:6,name:'Dragon Spirit', rarity:'Mythic',cost:5000,free:false,  yield:70000,img:'https://i.postimg.cc/ncL9SFj1/Generated-Image-June-21-2026-1-59PM.png',      ads:{monetag:{limit:6,reward:35},gigapub:{limit:6,reward:35}}},
 };
 // AdsGram: currently disabled (re-enable when approved)
 const ADSGRAM_ENABLED = false; // set true when AdsGram is re-approved
@@ -729,23 +737,28 @@ function obGo(id){
   document.getElementById(id).classList.add('act');
 }
 function markCh(id){
-  // Visual feedback after clicking
-  setTimeout(()=>{
-    const b=document.getElementById(id+'-b');
-    if(b)b.textContent='Checking...';
-  },500);
-  // Verify with server after 3s (time for user to actually join)
+  // Immediately show pending state
+  const badge=document.getElementById(id+'-b');
+  if(badge)badge.textContent='...';
+  // Wait 4s for user to actually join, then check
   setTimeout(async()=>{
     try{
       const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+      if(!r.ok) throw new Error('API error');
       const d=await r.json();
       const joined=id==='ch1'?d.channel:d.community;
       const card=document.getElementById(id);
-      const badge=document.getElementById(id+'-b');
-      if(joined){card.classList.add('joined');if(badge)badge.textContent='✓ Joined';}
-      else{if(badge)badge.textContent='Join';}
-    }catch{const b=document.getElementById(id+'-b');if(b)b.textContent='Join';}
-  },3000);
+      if(joined){
+        card.classList.add('joined');
+        if(badge)badge.textContent='✓ Joined';
+      } else {
+        if(badge)badge.textContent='Join';
+      }
+    } catch {
+      // API failed — allow manual visual confirmation
+      if(badge)badge.textContent='Tap to verify';
+    }
+  },4000);
 }
 
 async function verifyJoin(){
