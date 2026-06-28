@@ -42,17 +42,23 @@ export default async function handler(req, res) {
     // ── action: promo ─────────────────────────────────────────────
     if (action === 'promo') {
       if (!code) return res.status(400).json({ error: 'code required' });
+      const { checkOnly } = req.body;
       const promos = db.collection('promos');
       const promo = await promos.findOne({ code: code.toUpperCase().trim() });
 
-      if (!promo) return res.status(404).json({ error: 'Invalid promo code.' });
+      // Validate
+      if (!promo) return res.status(200).json({ valid: false, error: 'Invalid promo code.' });
       if (promo.expiresAt && new Date(promo.expiresAt) < new Date())
-        return res.status(400).json({ error: 'Promo code expired.' });
+        return res.status(200).json({ valid: false, error: 'Promo code expired.' });
       if (promo.maxUses && promo.usedCount >= promo.maxUses)
-        return res.status(400).json({ error: 'Promo code limit reached.' });
+        return res.status(200).json({ valid: false, error: 'Promo code limit reached.' });
       if ((user.promosUsed || []).includes(code.toUpperCase().trim()))
-        return res.status(400).json({ error: 'Already used this promo code.' });
+        return res.status(200).json({ valid: false, error: 'Already used this promo code.' });
 
+      // checkOnly = just validate, don't redeem yet (before showing ad)
+      if (checkOnly) return res.status(200).json({ valid: true, reward: promo.reward });
+
+      // Redeem
       await users.updateOne(
         { telegramId: String(telegramId) },
         { $inc: { egBalance: promo.reward }, $push: { promosUsed: code.toUpperCase().trim() } }
@@ -67,4 +73,4 @@ export default async function handler(req, res) {
     console.error('daily.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+          }
