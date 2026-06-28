@@ -830,6 +830,16 @@ function updateUI(){
   qs('#bal-usd').textContent=`≈ $${(eg*RATES.egToUsdt).toFixed(4)} USDT`;
   qs('#bal-ton').textContent=(eg*RATES.egToTon).toFixed(5);
   qs('#bal-usdt').textContent=(eg*RATES.egToUsdt).toFixed(4);
+
+  // Check daily claim state
+  if(userData.dailyClaimLast){
+    const last=new Date(userData.dailyClaimLast);
+    const diff=Date.now()-last.getTime();
+    const claimed=diff<24*60*60*1000;
+    updateDailyBtn(claimed);
+  } else {
+    updateDailyBtn(false);
+  }
 }
 
 // ── TABS ─────────────────────────────────────────────────────
@@ -841,6 +851,34 @@ function switchTab(t){
   qs('#scr').scrollTop=0;
   if(t==='market'){renderMarket();renderMySpirits();}
   if(t==='refer')loadRefData();
+  // Remind to join channels if not verified
+  remindChannelIfNeeded();
+}
+
+async function remindChannelIfNeeded(){
+  // Only check every 5 minutes to avoid spam
+  const lastCheck=parseInt(sessionStorage.getItem('ch_check')||'0');
+  if(Date.now()-lastCheck<5*60*1000)return;
+  sessionStorage.setItem('ch_check',Date.now());
+  try{
+    const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+    const d=await r.json();
+    if(!d.joined){
+      // Show reminder toast
+      const miss=[];
+      if(!d.channel)miss.push('@ton_edge_play');
+      if(!d.community)miss.push('@ton_edge_community');
+      Swal.fire({
+        toast:true,position:'top',
+        icon:'warning',
+        title:`⚠️ Join ${miss.join(' & ')} to keep access`,
+        html:`<div style="font-size:11px;margin-top:4px"><a href="https://t.me/${miss[0]?.slice(1)||'ton_edge_play'}" style="color:#00ff87" target="_blank">Tap here to join</a></div>`,
+        showConfirmButton:false,
+        timer:5000,
+        background:'#0b1610',color:'#e8f5ee'
+      });
+    }
+  } catch {}
 }
 function switchMkt(t){
   qs('#mkt-buy').style.display=t==='buy'?'grid':'none';
@@ -1015,23 +1053,116 @@ async function collectAd(){
 }
 
 // ── DAILY / PROMO ────────────────────────────────────────────
+// Watch ad then give daily reward
+async function triggerDailyClaim(){
+  const btn=qs('#daily-btn');
+  if(btn&&btn.textContent==='Claimed'){toast('warning','Already claimed. Come back tomorrow.');return;}
+  // Show ad first (Monetag or GigaPub)
+  try{
+    await showAdForReward('monetag','Daily Reward Ad');
+  } catch {
+    // If monetag fails try gigapub
+    try { await showAdForReward('gigapub','Daily Reward Ad'); }
+    catch { /* both failed — still allow claim */ }
+  }
+  await claimDaily();
+}
+
+async function showAdForReward(network, label){
+  return new Promise((resolve, reject)=>{
+    const names={monetag:'📺 Monetag',gigapub:'🌐 GigaPub'};
+    const cols={monetag:'var(--blue)',gigapub:'var(--g1)'};
+    const b=qs('#ad-badge');
+    b.textContent=names[network]||label;
+    b.style.background=(cols[network]||'var(--g1)')+'22';
+    b.style.color=cols[network]||'var(--g1)';
+    b.style.border=`1px solid ${cols[network]||'var(--g1)'}44`;
+    qs('#ad-title').textContent=label;
+    qs('#ad-collect').style.display='none';
+    qs('#ad-num').textContent='...';
+    qs('#ad-circ').style.strokeDashoffset='201';
+    qs('#ado').classList.add('op');
+
+    if(network==='monetag'&&typeof show_11192250==='function'){
+      show_11192250().then(()=>{qs('#ado').classList.remove('op');resolve();}).catch(()=>{qs('#ado').classList.remove('op');reject();});
+    } else if(network==='gigapub'&&typeof window.showGiga==='function'){
+      window.showGiga().then(()=>{qs('#ado').classList.remove('op');resolve();}).catch(()=>{qs('#ado').classList.remove('op');reject();});
+    } else {
+      // Fallback timer
+      qs('#ad-num').textContent='5';
+      let sec=5;
+      const t=setInterval(()=>{
+        sec--;qs('#ad-num').textContent=sec;
+        qs('#ad-circ').style.strokeDashoffset=201-(201*((5-sec)/5));
+        if(sec<=0){clearInterval(t);qs('#ad-collect').style.display='block';}
+      },1000);
+      qs('#ad-collect').onclick=()=>{qs('#ado').classList.remove('op');qs('#ad-collect').style.display='none';resolve();};
+    }
+  });
+}
+
 async function claimDaily(){
   try{
     const r=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'daily'})});
     const d=await r.json();
-    if(d.success){toast('success',`+${d.reward} EG daily reward!`);await refreshUser();}
-    else toast('warning',d.error||'Already claimed');
+    if(d.success){
+      toast('success',`+${d.reward} EG daily reward!`);
+      updateDailyBtn(true);
+      await refreshUser();
+    } else {
+      toast('warning',d.error||'Already claimed');
+      updateDailyBtn(true);
+    }
   }catch{toast('error','Network error');}
+}
+
+function updateDailyBtn(claimed){
+  const btn=qs('#daily-btn');
+  const sub=qs('#daily-sub');
+  const card=qs('#daily-card');
+  if(!btn)return;
+  if(claimed){
+    btn.textContent='Claimed ✓';
+    btn.style.background='rgba(90,138,110,.15)';
+    btn.style.color='var(--muted)';
+    btn.style.border='1px solid var(--border)';
+    if(sub)sub.textContent='Come back tomorrow';
+    if(card)card.style.opacity='.6';
+  } else {
+    btn.textContent='Claim';
+    btn.style.background='rgba(0,255,135,.1)';
+    btn.style.color='var(--g1)';
+    btn.style.border='1px solid rgba(0,255,135,.2)';
+    if(sub)sub.textContent='+25 EG every 24 hours';
+    if(card)card.style.opacity='1';
+  }
 }
 function focusPromo(){switchTab('home');setTimeout(()=>qs('#promo-inp')?.focus(),100);}
 async function redeemPromo(){
   const code=qs('#promo-inp').value.trim();
   if(!code||code.length!==6){toast('warning','Enter a 6-digit code');return;}
+
+  // First validate code before showing ad
   try{
-    const r=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'promo',code})});
+    const checkRes=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telegramId:tgUser.id,initData,action:'promo',code,checkOnly:true})});
+    const checkData=await checkRes.json();
+    if(!checkData.valid){toast('error',checkData.error||'Invalid or expired code');return;}
+
+    // Code is valid — show ad first
+    try{
+      await showAdForReward('gigapub','Promo Reward Ad');
+    } catch {
+      try { await showAdForReward('monetag','Promo Reward Ad'); }
+      catch { /* both failed — still give reward */ }
+    }
+
+    // Now claim the reward
+    const r=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telegramId:tgUser.id,initData,action:'promo',code})});
     const d=await r.json();
     if(d.success){qs('#promo-inp').value='';toast('success',`+${d.reward} EG from promo!`);await refreshUser();}
-    else toast('error',d.error||'Invalid code');
+    else toast('error',d.error||'Already used');
   }catch{toast('error','Network error');}
 }
 
