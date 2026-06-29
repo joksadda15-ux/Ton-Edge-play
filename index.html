@@ -148,13 +148,15 @@ input,select,button{font-family:'Inter',sans-serif}
 
 /* Nav */
 #nav{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(180deg,rgba(10,24,18,.85),var(--bg2));border-top:1px solid var(--border);z-index:10;padding:5px 0 10px;backdrop-filter:blur(14px)}
-.nav-in{display:grid;grid-template-columns:repeat(4,1fr);max-width:480px;margin:0 auto}
+.nav-in{display:grid;grid-template-columns:repeat(5,1fr);max-width:480px;margin:0 auto}
 .nb{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;cursor:pointer;border:none;background:none;border-top:2px solid transparent;transition:all .25s var(--ease);position:relative}
 .nb i{font-size:19px;color:var(--muted);transition:all .25s var(--ease)}
 .nb span{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;transition:color .2s}
 .nb.act{border-top-color:var(--g1)}
 .nb.act i{color:var(--g1);filter:drop-shadow(0 0 8px rgba(0,255,135,.6));transform:translateY(-2px)}
 #nb-home.act{border-top-color:#00ff87}
+#nb-play.act{border-top-color:#f43f5e}
+#nb-play.act i,#nb-play.act span{color:#f43f5e;text-shadow:0 0 8px rgba(244,63,94,.4)}
 #nb-home.act i,#nb-home.act span{color:#00ff87}
 #nb-market.act{border-top-color:#f59e0b}
 #nb-market.act i,#nb-market.act span{color:#f59e0b;text-shadow:0 0 8px rgba(245,158,11,.4)}
@@ -557,6 +559,64 @@ input,select,button{font-family:'Inter',sans-serif}
         <div id="ref-list"><div style="color:var(--muted);font-size:12px">No referrals yet</div></div>
       </div>
     </div>
+
+    <!-- PLAY GAME -->
+    <div class="sec" id="sec-play">
+      <!-- Token status card -->
+      <div style="background:linear-gradient(135deg,#1a0a1a,#2d0a1a);border:1px solid rgba(244,63,94,.25);border-radius:22px;padding:20px;margin-bottom:12px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:radial-gradient(circle,rgba(244,63,94,.1),transparent 70%);border-radius:50%"></div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#f43f5e;margin-bottom:6px;font-weight:700">🏹 Archer Hunt</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">Hunt birds · Earn <span style="color:#f59e0b">EG</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:16px">45 seconds · 20 arrows · Earn EG per kill</div>
+
+        <!-- Token display -->
+        <div style="background:rgba(0,0,0,.3);border:1px solid rgba(244,63,94,.2);border-radius:14px;padding:12px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:12px;font-weight:700;color:#fff">🎮 Game Tokens</span>
+            <span style="font-size:11px;color:var(--muted)" id="token-count-txt">Loading...</span>
+          </div>
+          <div style="display:flex;gap:6px" id="token-dots"></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px" id="token-regen-txt">Next token in: —</div>
+        </div>
+
+        <!-- Play button -->
+        <button id="play-game-btn" onclick="openGame()" style="width:100%;background:linear-gradient(135deg,#f43f5e,#e11d48);color:#fff;font-weight:800;font-size:16px;padding:16px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 6px 24px rgba(244,63,94,.35);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px">
+          <i class="fa-solid fa-play"></i> PLAY NOW
+        </button>
+
+        <!-- Watch ad for token -->
+        <button onclick="watchAdForToken()" style="width:100%;margin-top:8px;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);color:#f43f5e;font-size:12px;font-weight:700;padding:11px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s">
+          <i class="fa-solid fa-eye"></i> Watch Ad for Token
+          <span id="ad-token-count" style="background:rgba(244,63,94,.2);padding:2px 8px;border-radius:20px;font-size:10px"></span>
+        </button>
+      </div>
+
+      <!-- Stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="card cp" style="text-align:center">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Best Score</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;color:#f59e0b" id="game-best">0 EG</div>
+        </div>
+        <div class="card cp" style="text-align:center">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Games Played</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;color:#f43f5e" id="game-total">0</div>
+        </div>
+      </div>
+
+      <!-- How to play -->
+      <div class="card cp">
+        <div class="sec-title"><i class="fa-solid fa-circle-info" style="color:#f43f5e"></i>How to Play</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)">
+          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">1.</span><span>Hold & drag to aim your bow</span></div>
+          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">2.</span><span>Release to shoot — 20 arrows total</span></div>
+          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">3.</span><span>Hit birds to earn <b style="color:#f59e0b">EG coins</b> — rare birds = more EG</span></div>
+          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">4.</span><span>45 second time limit per game</span></div>
+          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">5.</span><span>New token every 5 hours · Watch ads for more</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
   </div>
 
   <div id="nav">
@@ -567,6 +627,17 @@ input,select,button{font-family:'Inter',sans-serif}
       <button class="nb g3d" id="nb-refer" onclick="switchTab('refer')"><i class="fa-solid fa-users"></i><span>Refer</span></button>
     </div>
   </div>
+</div>
+
+<!-- GAME OVERLAY -->
+<div id="game-overlay" style="position:fixed;inset:0;z-index:300;display:none;flex-direction:column;background:#000">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(0,0,0,.8);border-bottom:1px solid rgba(244,63,94,.3);flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:14px;font-weight:800;color:#fff">🏹 Archer Hunt</span>
+    </div>
+    <button onclick="closeGame()" style="background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.4);color:#f43f5e;font-size:12px;font-weight:700;padding:6px 14px;border-radius:9px;cursor:pointer">✕ Exit</button>
+  </div>
+  <iframe id="game-frame" src="" style="flex:1;border:none;width:100%;height:100%" allow="autoplay"></iframe>
 </div>
 
 <!-- SHEET -->
@@ -789,7 +860,7 @@ async function enterApp(){
 
   const ref=window.Telegram?.WebApp?.initDataUnsafe?.start_param||'';
   await registerOrLoad(ref);
-  renderMarket();loadTasks();loadRefData();checkMining();
+  renderMarket();loadTasks();loadRefData();checkMining();loadGameStatus();
   setInterval(checkChannelPeriodic,3*60*1000);
 }
 
@@ -851,6 +922,7 @@ function switchTab(t){
   qs('#scr').scrollTop=0;
   if(t==='market'){renderMarket();renderMySpirits();}
   if(t==='refer')loadRefData();
+  if(t==='play')loadGameStatus();
   // Remind to join channels if not verified
   remindChannelIfNeeded();
 }
@@ -1312,6 +1384,96 @@ function openM(id){document.getElementById(id).classList.add('op');}
 function closeM(id){document.getElementById(id).classList.remove('op');}
 document.querySelectorAll('.mbg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('op');}));
 function tgAlert(msg){if(window.Telegram?.WebApp)window.Telegram.WebApp.showAlert(msg);else alert(msg);}
+// ── GAME ─────────────────────────────────────────────────────
+let gameStatus=null,tokenRegenInterval=null;
+
+async function loadGameStatus(){
+  try{
+    const r=await fetch(`${API}/game?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const d=await r.json();
+    if(!d.success)return;
+    gameStatus=d;renderTokenUI(d);
+  }catch{}
+}
+
+function renderTokenUI(d){
+  const dots=qs('#token-dots'),txt=qs('#token-count-txt'),regenTxt=qs('#token-regen-txt'),adTxt=qs('#ad-token-count'),playBtn=qs('#play-game-btn');
+  if(!dots)return;
+  dots.innerHTML='';
+  for(let i=0;i<d.maxTokens;i++){
+    const dot=document.createElement('div');
+    dot.style.cssText=`width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid ${i<d.tokens?'rgba(244,63,94,.5)':'rgba(255,255,255,.1)'};background:${i<d.tokens?'rgba(244,63,94,.2)':'rgba(0,0,0,.3)'}`;
+    dot.textContent=i<d.tokens?'🎮':'○';dots.appendChild(dot);
+  }
+  if(txt)txt.textContent=`${d.tokens}/${d.maxTokens} tokens`;
+  if(tokenRegenInterval)clearInterval(tokenRegenInterval);
+  if(d.nextTokenMs&&d.tokens<d.maxTokens){
+    let ms=d.nextTokenMs;
+    const upd=()=>{
+      if(ms<=0){if(regenTxt)regenTxt.textContent='Token ready! Refresh.';clearInterval(tokenRegenInterval);return;}
+      const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
+      if(regenTxt)regenTxt.textContent=`Next token in: ${h>0?h+'h ':''} ${m}m ${s}s`;ms-=1000;
+    };upd();tokenRegenInterval=setInterval(upd,1000);
+  } else if(regenTxt){regenTxt.textContent=d.tokens>=d.maxTokens?'Storage full — play to use tokens':'—';}
+  if(playBtn){
+    if(d.tokens<=0){playBtn.style.opacity='.5';playBtn.style.cursor='not-allowed';playBtn.innerHTML='<i class="fa-solid fa-lock"></i> No Tokens — Watch Ad or Wait';}
+    else{playBtn.style.opacity='1';playBtn.style.cursor='pointer';playBtn.innerHTML=`<i class="fa-solid fa-play"></i> PLAY NOW (${d.tokens} token${d.tokens!==1?'s':''})`;}
+  }
+  const remaining=(d.adsTokensLimit||5)-(d.adsTokensToday||0);
+  if(adTxt)adTxt.textContent=`${remaining} left today`;
+  const best=qs('#game-best'),total=qs('#game-total');
+  if(best)best.textContent=(d.bestScore||0)+' EG';
+  if(total)total.textContent=d.totalGamesPlayed||0;
+}
+
+async function openGame(){
+  if(!gameStatus||gameStatus.tokens<=0){toast('error','No tokens! Watch an ad or wait for regen.');return;}
+  try{
+    const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'play'})});
+    const d=await r.json();
+    if(!d.success){toast('error',d.error||'Cannot start game');return;}
+    gameStatus.tokens=d.tokens;renderTokenUI(gameStatus);
+  }catch{toast('error','Network error');return;}
+  const frame=qs('#game-frame');
+  frame.src='game.html';
+  qs('#game-overlay').style.display='flex';
+  window.addEventListener('message',onGameMessage);
+}
+
+async function onGameMessage(e){
+  if(e.data?.type!=='GAME_END')return;
+  window.removeEventListener('message',onGameMessage);
+  const{egEarned,kills}=e.data;
+  closeGame();
+  if(egEarned>0){
+    try{
+      const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'claim',egEarned,kills})});
+      const d=await r.json();
+      if(d.success&&d.reward>0){toast('success',`+${d.reward} EG from Archer Hunt!`);await refreshUser();}
+    }catch{}
+  }
+  await loadGameStatus();
+}
+
+function closeGame(){
+  const frame=qs('#game-frame');if(frame)frame.src='';
+  qs('#game-overlay').style.display='none';
+  window.removeEventListener('message',onGameMessage);
+}
+
+async function watchAdForToken(){
+  if(gameStatus&&gameStatus.tokens>=(gameStatus.maxTokens||5)){toast('warning','Token storage full! Play first.');return;}
+  if(gameStatus&&(gameStatus.adsTokensToday||0)>=(gameStatus.adsTokensLimit||5)){toast('error','Daily ad token limit reached.');return;}
+  try{await showAdForReward('gigapub','Game Token Ad');}
+  catch{try{await showAdForReward('monetag','Game Token Ad');}catch{toast('error','Ad failed to load');return;}}
+  try{
+    const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'adtoken'})});
+    const d=await r.json();
+    if(d.success){toast('success',`🎮 +1 Token! You have ${d.tokens} tokens.`);gameStatus.tokens=d.tokens;renderTokenUI(gameStatus);}
+    else toast('error',d.error||'Failed');
+  }catch{toast('error','Network error');}
+}
+
 function toast(icon,title){
   Swal.fire({toast:true,position:'top-end',icon,title,showConfirmButton:false,timer:2500,background:'#0b1610',color:'#e8f5ee',iconColor:icon==='success'?'#00ff87':icon==='error'?'#ef4444':'#f59e0b'});
 }
