@@ -164,6 +164,12 @@ input,select,button{font-family:'Inter',sans-serif}
 #nb-tasks.act i,#nb-tasks.act span{color:#60a5fa;text-shadow:0 0 8px rgba(96,165,250,.4)}
 #nb-refer.act{border-top-color:#a855f7}
 #nb-refer.act i,#nb-refer.act span{color:#a855f7;text-shadow:0 0 8px rgba(168,85,247,.4)}
+/* Play center button */
+.nb-play-center{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;cursor:pointer;border:none;background:none;position:relative;margin-top:-18px}
+.nb-play-ico{width:54px;height:54px;background:linear-gradient(135deg,#f43f5e,#e11d48);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;box-shadow:0 4px 18px rgba(244,63,94,.45),0 0 0 3px var(--bg2),0 0 0 4px rgba(244,63,94,.3);transition:all .2s}
+.nb-play-center:active .nb-play-ico{transform:scale(.92)}
+.nb-play-center span{font-size:9px;font-weight:800;color:#f43f5e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+#nb-play.act .nb-play-ico{box-shadow:0 4px 24px rgba(244,63,94,.6),0 0 0 3px var(--bg2),0 0 0 5px rgba(244,63,94,.5)}
 .nb.act span{color:var(--g1)}
 .nb:active i{transform:scale(.85)}
 
@@ -562,58 +568,89 @@ input,select,button{font-family:'Inter',sans-serif}
 
     <!-- PLAY GAME -->
     <div class="sec" id="sec-play">
-      <!-- Token status card -->
-      <div style="background:linear-gradient(135deg,#1a0a1a,#2d0a1a);border:1px solid rgba(244,63,94,.25);border-radius:22px;padding:20px;margin-bottom:12px;position:relative;overflow:hidden">
-        <div style="position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:radial-gradient(circle,rgba(244,63,94,.1),transparent 70%);border-radius:50%"></div>
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#f43f5e;margin-bottom:6px;font-weight:700">🏹 Archer Hunt</div>
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">Hunt birds · Earn <span style="color:#f59e0b">EG</span></div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:16px">45 seconds · 20 arrows · Earn EG per kill</div>
+
+      <!-- BIG HERO PLAY CARD — FarmGram style -->
+      <div style="position:relative;background:linear-gradient(160deg,#0d0a1a 0%,#1a0818 40%,#200a10 100%);border:1px solid rgba(244,63,94,.2);border-radius:24px;overflow:hidden;margin-bottom:14px">
+
+        <!-- Background glow -->
+        <div style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(244,63,94,.12),transparent 70%);border-radius:50%;pointer-events:none"></div>
+        <div style="position:absolute;bottom:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(245,158,11,.07),transparent 70%);border-radius:50%;pointer-events:none"></div>
+
+        <!-- Game banner image area -->
+        <div style="width:100%;height:160px;background:linear-gradient(135deg,#0a0618,#1a0a20,#0d1020);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+          <div style="position:absolute;inset:0;background:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 160%22><text y=%22120%22 font-size=%22130%22 opacity=%22.06%22>🏹</text></svg>') center/contain no-repeat"></div>
+          <div style="text-align:center;z-index:1">
+            <div style="font-size:52px;margin-bottom:6px;filter:drop-shadow(0 0 20px rgba(244,63,94,.6))">🏹</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:900;color:#fff;letter-spacing:1px;text-shadow:0 0 20px rgba(244,63,94,.5)">ARCHER HUNT</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;letter-spacing:2px;text-transform:uppercase">Hunt · Earn · Repeat</div>
+          </div>
+        </div>
+
+        <!-- Quick stats row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid rgba(244,63,94,.12);border-bottom:1px solid rgba(244,63,94,.12)">
+          <div style="padding:10px;text-align:center;border-right:1px solid rgba(244,63,94,.1)">
+            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px">Time</div>
+            <div style="font-size:15px;font-weight:800;color:#fff;margin-top:2px">45s</div>
+          </div>
+          <div style="padding:10px;text-align:center;border-right:1px solid rgba(244,63,94,.1)">
+            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px">Arrows</div>
+            <div style="font-size:15px;font-weight:800;color:#fff;margin-top:2px">20</div>
+          </div>
+          <div style="padding:10px;text-align:center">
+            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px">Best</div>
+            <div style="font-size:15px;font-weight:800;color:#f59e0b;margin-top:2px" id="game-best">0 EG</div>
+          </div>
+        </div>
 
         <!-- Token display -->
-        <div style="background:rgba(0,0,0,.3);border:1px solid rgba(244,63,94,.2);border-radius:14px;padding:12px;margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <span style="font-size:12px;font-weight:700;color:#fff">🎮 Game Tokens</span>
-            <span style="font-size:11px;color:var(--muted)" id="token-count-txt">Loading...</span>
+        <div style="padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1px">🎮 Game Tokens</span>
+            <span style="font-size:10px;color:rgba(255,255,255,.35)" id="token-count-txt">Loading...</span>
           </div>
-          <div style="display:flex;gap:6px" id="token-dots"></div>
-          <div style="font-size:10px;color:var(--muted);margin-top:8px" id="token-regen-txt">Next token in: —</div>
+          <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px" id="token-dots"></div>
+          <div style="font-size:10px;color:rgba(255,255,255,.3);text-align:center;margin-bottom:16px" id="token-regen-txt">—</div>
+
+          <!-- BIG PLAY BUTTON -->
+          <button id="play-game-btn" onclick="openGame()" style="width:100%;background:linear-gradient(135deg,#f43f5e,#e11d48,#be123c);color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:18px;padding:18px;border-radius:18px;border:none;cursor:pointer;box-shadow:0 8px 32px rgba(244,63,94,.4),0 2px 8px rgba(0,0,0,.4);transition:all .2s;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:12px;position:relative;overflow:hidden">
+            <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1),transparent);pointer-events:none"></div>
+            <i class="fa-solid fa-play" style="font-size:16px"></i>
+            <span>PLAY NOW</span>
+          </button>
+
+          <!-- Ad token button -->
+          <button onclick="watchAdForToken()" style="width:100%;margin-top:8px;background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.2);color:rgba(244,63,94,.8);font-size:12px;font-weight:700;padding:11px;border-radius:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s">
+            <i class="fa-solid fa-eye"></i>
+            Watch Ad — Get Token
+            <span id="ad-token-count" style="background:rgba(244,63,94,.15);padding:2px 9px;border-radius:20px;font-size:10px;color:rgba(244,63,94,.9)"></span>
+          </button>
         </div>
-
-        <!-- Play button -->
-        <button id="play-game-btn" onclick="openGame()" style="width:100%;background:linear-gradient(135deg,#f43f5e,#e11d48);color:#fff;font-weight:800;font-size:16px;padding:16px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 6px 24px rgba(244,63,94,.35);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px">
-          <i class="fa-solid fa-play"></i> PLAY NOW
-        </button>
-
-        <!-- Watch ad for token -->
-        <button onclick="watchAdForToken()" style="width:100%;margin-top:8px;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);color:#f43f5e;font-size:12px;font-weight:700;padding:11px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s">
-          <i class="fa-solid fa-eye"></i> Watch Ad for Token
-          <span id="ad-token-count" style="background:rgba(244,63,94,.2);padding:2px 8px;border-radius:20px;font-size:10px"></span>
-        </button>
       </div>
 
-      <!-- Stats -->
+      <!-- Stats row -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <div class="card cp" style="text-align:center">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Best Score</div>
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;color:#f59e0b" id="game-best">0 EG</div>
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Games Played</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:800;color:#f43f5e" id="game-total">0</div>
         </div>
         <div class="card cp" style="text-align:center">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Games Played</div>
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;color:#f43f5e" id="game-total">0</div>
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Total Earned</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:800;color:#f59e0b" id="game-earned">0 EG</div>
         </div>
       </div>
 
       <!-- How to play -->
       <div class="card cp">
         <div class="sec-title"><i class="fa-solid fa-circle-info" style="color:#f43f5e"></i>How to Play</div>
-        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)">
-          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">1.</span><span>Hold & drag to aim your bow</span></div>
-          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">2.</span><span>Release to shoot — 20 arrows total</span></div>
-          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">3.</span><span>Hit birds to earn <b style="color:#f59e0b">EG coins</b> — rare birds = more EG</span></div>
-          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">4.</span><span>45 second time limit per game</span></div>
-          <div style="display:flex;gap:10px"><span style="color:#f43f5e;font-weight:700;flex-shrink:0">5.</span><span>New token every 5 hours · Watch ads for more</span></div>
+        <div style="display:flex;flex-direction:column;gap:9px;font-size:12px;color:var(--muted)">
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(244,63,94,.15);color:#f43f5e;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">1</span><span>Hold & drag anywhere to aim your bow</span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(244,63,94,.15);color:#f43f5e;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">2</span><span>Release to shoot — 1.5s gap between arrows</span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(245,158,11,.15);color:#f59e0b;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">3</span><span>Hit birds to earn <b style="color:#f59e0b">EG coins</b> — rare birds = more EG</span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(244,63,94,.15);color:#f43f5e;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">4</span><span>45 second time limit per round</span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(96,165,250,.15);color:#60a5fa;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">5</span><span>New token every 5 hours · Watch ads for more tokens</span></div>
         </div>
       </div>
+    </div>
     </div>
 
   </div>
@@ -623,6 +660,10 @@ input,select,button{font-family:'Inter',sans-serif}
     <div class="nav-in">
       <button class="nb act g3d" id="nb-home" onclick="switchTab('home')"><i class="fa-solid fa-house"></i><span>Home</span></button>
       <button class="nb g3d" id="nb-market" onclick="switchTab('market')"><i class="fa-solid fa-store"></i><span>Market</span></button>
+      <button class="nb-play-center" id="nb-play" onclick="switchTab('play')">
+        <div class="nb-play-ico"><i class="fa-solid fa-gamepad"></i></div>
+        <span>Play</span>
+      </button>
       <button class="nb g3d" id="nb-tasks" onclick="switchTab('tasks')"><i class="fa-solid fa-list-check"></i><span>Tasks</span></button>
       <button class="nb g3d" id="nb-refer" onclick="switchTab('refer')"><i class="fa-solid fa-users"></i><span>Refer</span></button>
     </div>
@@ -916,14 +957,14 @@ function updateUI(){
 // ── TABS ─────────────────────────────────────────────────────
 function switchTab(t){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('act'));
-  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('act'));
+  // Remove act from all nav buttons (both .nb and .nb-play-center)
+  document.querySelectorAll('.nb,.nb-play-center').forEach(b=>b.classList.remove('act'));
   qs('#sec-'+t).classList.add('act');
-  qs('#nb-'+t).classList.add('act');
+  const nb=qs('#nb-'+t);if(nb)nb.classList.add('act');
   qs('#scr').scrollTop=0;
   if(t==='market'){renderMarket();renderMySpirits();}
   if(t==='refer')loadRefData();
   if(t==='play')loadGameStatus();
-  // Remind to join channels if not verified
   remindChannelIfNeeded();
 }
 
