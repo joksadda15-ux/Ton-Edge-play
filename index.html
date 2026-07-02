@@ -757,6 +757,35 @@ input,select,button{font-family:'Inter',sans-serif}
 
 <script>
 'use strict';
+// ── ANTI-HACK PROTECTION ──────────────────────────────────────
+(function(){
+  // Block right-click context menu
+  document.addEventListener('contextmenu',e=>e.preventDefault());
+  // Block F12, Ctrl+Shift+I, Ctrl+U, Ctrl+S
+  document.addEventListener('keydown',e=>{
+    if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['I','J','C'].includes(e.key))||(e.ctrlKey&&['U','S','u','s'].includes(e.key))){e.preventDefault();return false;}
+  });
+  // DevTools size detection
+  let devOpen=false;
+  const threshold=160;
+  setInterval(()=>{
+    const w=window.outerWidth-window.innerWidth>threshold;
+    const h=window.outerHeight-window.innerHeight>threshold;
+    if((w||h)&&!devOpen){
+      devOpen=true;
+      document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#060d0a;gap:14px;padding:24px;text-align:center"><div style="font-size:48px">🚫</div><h3 style="color:#ef4444;font-size:16px;font-weight:800">Access Denied</h3><p style="color:#5a8a6e;font-size:13px">DevTools detected.<br>Close them and reopen the app.</p></div>';
+    }
+    if(!w&&!h&&devOpen)devOpen=false;
+  },1000);
+  // Block console access via proxy
+  try{
+    Object.defineProperty(window,'console',{
+      get:()=>({log:()=>{},warn:()=>{},error:()=>{},info:()=>{},debug:()=>{}}),
+      configurable:false
+    });
+  }catch(e){}
+})();
+
 const API='https://ton-edge-play.vercel.app/api';
 const RATES={egToTon:.5/20000,egToUsdt:1/20000};
 const FEE=.05;
@@ -842,6 +871,32 @@ function showInterstitial(){
 }
 
 window.addEventListener('DOMContentLoaded',main);
+
+// ── ANTI-HACK: DevTools & console protection ──────────────────
+(function(){
+  'use strict';
+
+  // 1. Disable right-click
+  document.addEventListener('contextmenu',e=>e.preventDefault());
+
+  // 2. Disable F12 / DevTools shortcuts
+  document.addEventListener('keydown',e=>{
+    if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['I','J','C','U'].includes(e.key))||(e.ctrlKey&&e.key==='U')){
+      e.preventDefault();return false;
+    }
+  });
+
+  // 3. DevTools open detection (size-based)
+  let devOpen=false;
+  const devCheck=()=>{
+    const t=window.outerWidth-window.innerWidth>200||window.outerHeight-window.innerHeight>200;
+    if(t&&!devOpen){devOpen=true;document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#060d0a;gap:16px;padding:32px;text-align:center"><div style="font-size:60px">🚫</div><h3 style="color:#ef4444;font-size:17px;font-weight:800">Access Denied</h3><p style="color:#5a8a6e;font-size:13px;line-height:1.7">Developer tools detected.<br>Please close DevTools and reopen the app.</p></div>';}
+  };
+  setInterval(devCheck,1000);
+
+  // 4. Freeze critical game variables from console access
+  // Balance is always server-side — client display only
+})();
 
 // ── ONBOARDING ───────────────────────────────────────────────
 function obGo(id){
@@ -1116,6 +1171,7 @@ function showRealAd(network){
 async function watchAd(network){
   if(!activeSheet)return;
   if(!(userData?.ownedSpirits?.[activeSheet]>0)){toast('error','Buy this spirit first');return;}
+  if(_adRunning){toast('warning','Ad already playing, please wait.');return;}
   curAdNet=network;
   const names={adsgram:'⚡ AdsGram',monetag:'📺 Monetag',gigapub:'🌐 GigaPub'}; // adsgram locked
   const cols={adsgram:'var(--amber)',monetag:'var(--blue)',gigapub:'var(--g1)'};
@@ -1169,20 +1225,26 @@ async function collectAd(){
 // Watch ad then give daily reward
 async function triggerDailyClaim(){
   const btn=qs('#daily-btn');
-  if(btn&&btn.textContent==='Claimed'){toast('warning','Already claimed. Come back tomorrow.');return;}
-  // Show ad first (Monetag or GigaPub)
-  try{
-    await showAdForReward('monetag','Daily Reward Ad');
-  } catch {
-    // If monetag fails try gigapub
-    try { await showAdForReward('gigapub','Daily Reward Ad'); }
-    catch { /* both failed — still allow claim */ }
+  if(btn&&(btn.textContent==='Claimed ✓'||btn.textContent==='Claimed')){
+    toast('warning','Already claimed. Come back tomorrow.');return;
+  }
+  if(_adRunning){toast('warning','Ad already playing, please wait.');return;}
+  // Random network to avoid cross-trigger
+  const net=Math.random()<0.5?'gigapub':'monetag';
+  const fallback=net==='gigapub'?'monetag':'gigapub';
+  try{await showAdForReward(net,'Daily Reward Ad');}
+  catch{
+    try{await showAdForReward(fallback,'Daily Reward Ad');}
+    catch{/* both failed — still claim */}
   }
   await claimDaily();
 }
 
+
 async function showAdForReward(network, label){
-  return new Promise((resolve, reject)=>{
+  if(_adRunning){return Promise.reject(new Error('Ad already running'));}
+  _adRunning=true;
+  return new Promise((resolve,reject)=>{
     const names={monetag:'📺 Monetag',gigapub:'🌐 GigaPub'};
     const cols={monetag:'var(--blue)',gigapub:'var(--g1)'};
     const b=qs('#ad-badge');
@@ -1195,11 +1257,16 @@ async function showAdForReward(network, label){
     qs('#ad-num').textContent='...';
     qs('#ad-circ').style.strokeDashoffset='201';
     qs('#ado').classList.add('op');
-
+    const done=(ok)=>{
+      _adRunning=false;
+      qs('#ado').classList.remove('op');
+      qs('#ad-collect').style.display='none';
+      if(ok)resolve(); else reject(new Error('Ad failed'));
+    };
     if(network==='monetag'&&typeof show_11192250==='function'){
-      show_11192250().then(()=>{qs('#ado').classList.remove('op');resolve();}).catch(()=>{qs('#ado').classList.remove('op');reject();});
+      show_11192250().then(()=>done(true)).catch(()=>done(false));
     } else if(network==='gigapub'&&typeof window.showGiga==='function'){
-      window.showGiga().then(()=>{qs('#ado').classList.remove('op');resolve();}).catch(()=>{qs('#ado').classList.remove('op');reject();});
+      window.showGiga().then(()=>done(true)).catch(()=>done(false));
     } else {
       // Fallback timer
       qs('#ad-num').textContent='5';
@@ -1207,258 +1274,78 @@ async function showAdForReward(network, label){
       const t=setInterval(()=>{
         sec--;qs('#ad-num').textContent=sec;
         qs('#ad-circ').style.strokeDashoffset=201-(201*((5-sec)/5));
-        if(sec<=0){clearInterval(t);qs('#ad-collect').style.display='block';}
+        if(sec<=0){
+          clearInterval(t);
+          qs('#ad-collect').style.display='block';
+          // One-time click handler
+          const btn=qs('#ad-collect');
+          const h=()=>{btn.removeEventListener('click',h);done(true);};
+          btn.addEventListener('click',h);
+        }
       },1000);
-      qs('#ad-collect').onclick=()=>{qs('#ado').classList.remove('op');qs('#ad-collect').style.display='none';resolve();};
     }
   });
 }
 
-async function claimDaily(){
-  try{
-    const r=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'daily'})});
-    const d=await r.json();
-    if(d.success){
-      toast('success',`+${d.reward} EG daily reward!`);
-      updateDailyBtn(true);
-      await refreshUser();
-    } else {
-      toast('warning',d.error||'Already claimed');
-      updateDailyBtn(true);
-    }
-  }catch{toast('error','Network error');}
-}
 
-function updateDailyBtn(claimed){
-  const btn=qs('#daily-btn');
-  const sub=qs('#daily-sub');
-  const card=qs('#daily-card');
-  if(!btn)return;
-  if(claimed){
-    btn.textContent='Claimed ✓';
-    btn.style.background='rgba(90,138,110,.15)';
-    btn.style.color='var(--muted)';
-    btn.style.border='1px solid var(--border)';
-    if(sub)sub.textContent='Come back tomorrow';
-    if(card)card.style.opacity='.6';
-  } else {
-    btn.textContent='Claim';
-    btn.style.background='rgba(0,255,135,.1)';
-    btn.style.color='var(--g1)';
-    btn.style.border='1px solid rgba(0,255,135,.2)';
-    if(sub)sub.textContent='+25 EG every 24 hours';
-    if(card)card.style.opacity='1';
-  }
-}
-function focusPromo(){switchTab('home');setTimeout(()=>qs('#promo-inp')?.focus(),100);}
-async function redeemPromo(){
-  const code=qs('#promo-inp').value.trim();
-  if(!code||code.length!==6){toast('warning','Enter a 6-digit code');return;}
 
-  // First validate code before showing ad
-  try{
-    const checkRes=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({telegramId:tgUser.id,initData,action:'promo',code,checkOnly:true})});
-    const checkData=await checkRes.json();
-    if(!checkData.valid){toast('error',checkData.error||'Invalid or expired code');return;}
-
-    // Code is valid — show ad first
-    try{
-      await showAdForReward('gigapub','Promo Reward Ad');
-    } catch {
-      try { await showAdForReward('monetag','Promo Reward Ad'); }
-      catch { /* both failed — still give reward */ }
-    }
-
-    // Now claim the reward
-    const r=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({telegramId:tgUser.id,initData,action:'promo',code})});
-    const d=await r.json();
-    if(d.success){qs('#promo-inp').value='';toast('success',`+${d.reward} EG from promo!`);await refreshUser();}
-    else toast('error',d.error||'Already used');
-  }catch{toast('error','Network error');}
-}
-
-// ── TASKS ────────────────────────────────────────────────────
-async function loadTasks(){
-  try{
-    const r=await fetch(`${API}/tasks?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
-    const d=await r.json();if(!d.success)return;
-    const ico={telegram:'fa-brands fa-telegram',api:'fa-brands fa-telegram',youtube:'fa-brands fa-youtube',social:'fa-brands fa-twitter',share:'fa-solid fa-share-nodes'};
-    const col={telegram:'rgba(0,255,135,.1)',api:'rgba(0,255,135,.1)',youtube:'rgba(239,68,68,.1)',social:'rgba(96,165,250,.1)',share:'rgba(0,200,100,.1)'};
-    const ic={telegram:'var(--g1)',api:'var(--g1)',youtube:'#ef4444',social:'var(--blue)',share:'var(--g2)'};
-    const list=qs('#tasks-list');
-    if(!d.tasks.length){list.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--muted);font-size:13px">No tasks available yet</div>';return;}
-    list.innerHTML=d.tasks.map(t=>`<div class="task-item${t.completed?' done':''}"><div class="task-ico" style="background:${col[t.type]||'rgba(0,255,135,.08)'}"><i class="${ico[t.type]||'fa-solid fa-star'}" style="color:${ic[t.type]||'var(--g1)'}"></i></div><div class="task-text"><div class="task-name">${t.title}</div><div class="task-rew">+${t.reward} EG</div></div>${t.completed?'<span class="task-done">✓ Done</span>':`<button class="task-start g3d" id="tb-${t.id}" onclick="doTask('${t.id}','${t.link||''}')">Start</button>`}</div>`).join('');
-  }catch{}
-}
-async function doTask(id,link){
-  const btn=qs(`#tb-${id}`);if(btn){btn.textContent='Checking...';btn.disabled=true;}
-  if(link){if(window.Telegram?.WebApp)window.Telegram.WebApp.openTelegramLink(link);else window.open(link,'_blank');}
-  setTimeout(async()=>{
-    try{
-      const r=await fetch(`${API}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,taskId:id})});
-      const d=await r.json();
-      if(d.success){toast('success',`+${d.reward} EG!`);await refreshUser();loadTasks();}
-      else if(btn){btn.textContent='Start';btn.disabled=false;toast('error',d.error||'Task failed');}
-    }catch{if(btn){btn.textContent='Start';btn.disabled=false;}}
-  },3000);
-}
-
-// ── REFER ────────────────────────────────────────────────────
-async function loadRefData(){
-  try{
-    const r=await fetch(`${API}/tasks?telegramId=${tgUser.id}&type=refer&initData=${encodeURIComponent(initData)}`);
-    const d=await r.json();if(!d.success)return;
-    qs('#ref-total').textContent=d.totalReferred||0;
-    qs('#ref-earned').textContent=(d.totalRefEarned||0).toLocaleString()+' EG';
-    qs('#ref-link-box').textContent=d.referLink||'';
-    const list=qs('#ref-list');
-    if(!d.referredUsers?.length){list.innerHTML='<div style="color:var(--muted);font-size:12px">No referrals yet</div>';return;}
-    list.innerHTML=d.referredUsers.map((u,i)=>`<div class="ref-user-row"><span style="color:var(--muted)">${i+1}. ${u.firstName||''} ${u.username?'@'+u.username:''}</span><span style="color:var(--muted);font-size:10px">${new Date(u.createdAt).toLocaleDateString()}</span></div>`).join('');
-  }catch{}
-}
-function copyRef(){
-  const link=qs('#ref-link-box').textContent;
-  navigator.clipboard.writeText(link).catch(()=>{});
-  toast('success','Link copied!');
-}
-function shareRef(){
-  const link=qs('#ref-link-box').textContent;
-  const url=`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🥚 Join Ton Edge Play! Earn EG coins, watch ads & withdraw crypto!')}`;
-  if(window.Telegram?.WebApp)window.Telegram.WebApp.openTelegramLink(url);
-  else window.open(url,'_blank');
-}
-
-// ── WITHDRAW / CONVERT ───────────────────────────────────────
-function updateWdPrev(){
-  const m=qs('#wd-method').value,eg=parseFloat(qs('#wd-eg').value)||0;
-  const lbl=qs('#wd-addr-lbl'),addr=qs('#wd-addr');
-  if(m==='binance'){lbl.textContent='Binance UID (numbers only)';addr.placeholder='Enter Binance UID';addr.inputMode='numeric';}
-  else{lbl.textContent='TON Wallet Address';addr.placeholder='UQ... or EQ...';addr.inputMode='text';}
-  const after=eg*(1-FEE);
-  if(!eg){qs('#wd-prev').textContent='Enter amount to preview';return;}
-  const adsReq=Math.ceil(eg/EG_PER_01_USDT)*WD_ADS_PER_01_USDT;
-  const out=m==='binance'?'$'+(after*RATES.egToUsdt).toFixed(4)+' USDT':(after*RATES.egToTon).toFixed(5)+' TON';
-  qs('#wd-prev').innerHTML=`${eg.toLocaleString()} EG → <b>${out}</b> (after 5% fee)<br><span style="color:var(--amber);font-size:10px"><i class="fa-solid fa-eye"></i> Requires <b>${adsReq} ads</b> watched today</span>`;
-}
-function calcWdAdsRequired(egAmount){
-  // Per $0.1 USDT = 5 ads required
-  // 2000 EG = $0.1, so per 2000 EG = 5 ads
-  const units=Math.ceil(egAmount/EG_PER_01_USDT);
-  return units*WD_ADS_PER_01_USDT;
-}
-
-async function submitWd(){
-  const m=qs('#wd-method').value,addr=qs('#wd-addr').value.trim(),eg=parseFloat(qs('#wd-eg').value);
-  if(!addr){toast('error','Enter address/UID');return;}
-  if(!eg||eg<2000){toast('error','Minimum 2,000 EG');return;}
-  if(!userData||eg>userData.egBalance){toast('error','Insufficient balance');return;}
-
-  // Daily withdraw limit — 1 per day
-  const todayKey=new Date().toISOString().slice(0,10);
-  const lastWd=localStorage.getItem('tep_wd_date_'+tgUser.id);
-  if(lastWd===todayKey){toast('error','Daily limit reached. 1 withdrawal per day.');return;}
-
-  // Ads roadmap check
-  const adsRequired=calcWdAdsRequired(eg);
-  const todayAds=userData?.todayAds?.[todayKey]||{};
-  let totalTodayAds=0;
-  Object.values(todayAds).forEach(planAds=>{Object.values(planAds).forEach(n=>totalTodayAds+=n);});
-
-  if(totalTodayAds<adsRequired){
-    toast('error',`Need ${adsRequired} ads watched today. You watched ${totalTodayAds}. Watch ${adsRequired-totalTodayAds} more ads first.`);
-    return;
-  }
-
-  try{
-    const r=await fetch(`${API}/withdraw`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,method:m,address:addr,egAmount:eg})});
-    const d=await r.json();
-    if(d.success){
-      localStorage.setItem('tep_wd_date_'+tgUser.id,todayKey);
-      closeM('wd-m');
-      toast('success','Withdrawal submitted! Processing in 24-48h.');
-      await refreshUser();
-    } else toast('error',d.error||'Failed');
-  }catch{toast('error','Network error');}
-}
-function updateCvPrev(){
-  const eg=parseFloat(qs('#cv-eg').value)||0,to=qs('#cv-to').value;
-  qs('#cv-prev').textContent=eg?`${eg.toLocaleString()} EG → ${to==='TON'?(eg*RATES.egToTon).toFixed(5)+' TON':'$'+(eg*RATES.egToUsdt).toFixed(4)+' USDT'}`:'Enter amount to preview';
-}
-function submitCv(){
-  const eg=parseFloat(qs('#cv-eg').value);
-  if(!eg||eg<500){toast('error','Minimum 500 EG');return;}
-  if(!userData||eg>userData.egBalance){toast('error','Insufficient EG');return;}
-  const to=qs('#cv-to').value;
-  const out=to==='TON'?(eg*RATES.egToTon).toFixed(5)+' TON':'$'+(eg*RATES.egToUsdt).toFixed(4)+' USDT';
-  closeM('cv-m');toast('success','Converted: '+out);
-}
-
-// ── MINING ───────────────────────────────────────────────────
-function checkMining(){
-  if(!userData?.activePlan||userData.activePlan.status!=='mining'){qs('#mine-card').style.display='none';return;}
-  qs('#mine-card').style.display='block';
-  qs('#mine-plan').textContent=PLANS[userData.activePlan.planId]?.name||'';
-  const tick=setInterval(async()=>{
-    const fin=new Date(userData.miningFinishTime),diff=fin-Date.now();
-    if(diff<=0){
-      clearInterval(tick);
-      const r=await fetch(`${API}/mining`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'claim'})});
-      const d=await r.json();
-      if(d.success){toast('success',`+${d.reward} EG mining reward!`);await refreshUser();qs('#mine-card').style.display='none';}
-    } else {
-      const total=userData.activePlan.miningHours*3600,elapsed=total-Math.ceil(diff/1000);
-      qs('#mine-bar').style.width=(elapsed/total)*100+'%';
-      qs('#mine-earned').textContent=Math.floor((userData.activePlan.yield/total)*elapsed).toLocaleString();
-      const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);
-      qs('#mine-eta').textContent=h>0?`${h}h ${m}m`:`${m}m`;
-    }
-  },5000);
-}
-
-// ── UTILS ────────────────────────────────────────────────────
-const qs=s=>document.querySelector(s);
-function show(id){document.getElementById(id).style.display='flex';}
-function hide(id){document.getElementById(id).style.display='none';}
-function openM(id){document.getElementById(id).classList.add('op');}
-function closeM(id){document.getElementById(id).classList.remove('op');}
-document.querySelectorAll('.mbg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('op');}));
-function tgAlert(msg){if(window.Telegram?.WebApp)window.Telegram.WebApp.showAlert(msg);else alert(msg);}
-// ── GAME ─────────────────────────────────────────────────────
+// ── GAME FUNCTIONS ────────────────────────────────────────────
 let gameStatus=null,tokenRegenInterval=null;
 
 async function loadGameStatus(){
   try{
-    const r=await fetch(`${API}/game?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const r=await fetch(`${API}/game`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telegramId:tgUser.id,initData,action:'status'})
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
-    if(!d.success)return;
-    gameStatus=d;renderTokenUI(d);
-  }catch{}
+    if(!d.success){
+      const txt=qs('#token-count-txt');
+      if(txt)txt.textContent='Tap Play to retry';
+      return;
+    }
+    gameStatus=d;
+    renderTokenUI(d);
+  }catch(e){
+    console.warn('loadGameStatus:',e);
+    const txt=qs('#token-count-txt');
+    if(txt)txt.textContent='Error — tap Play to retry';
+  }
 }
 
 function renderTokenUI(d){
   const dots=qs('#token-dots'),txt=qs('#token-count-txt'),regenTxt=qs('#token-regen-txt'),adTxt=qs('#ad-token-count'),playBtn=qs('#play-game-btn');
   if(!dots)return;
   dots.innerHTML='';
-  for(let i=0;i<d.maxTokens;i++){
+  for(let i=0;i<(d.maxTokens||5);i++){
     const dot=document.createElement('div');
-    dot.style.cssText=`width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid ${i<d.tokens?'rgba(244,63,94,.5)':'rgba(255,255,255,.1)'};background:${i<d.tokens?'rgba(244,63,94,.2)':'rgba(0,0,0,.3)'}`;
-    dot.textContent=i<d.tokens?'🎮':'○';dots.appendChild(dot);
+    dot.style.cssText=`width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .3s;border:1px solid ${i<d.tokens?'rgba(244,63,94,.5)':'rgba(255,255,255,.1)'};background:${i<d.tokens?'rgba(244,63,94,.2)':'rgba(0,0,0,.3)'}`;
+    dot.textContent=i<d.tokens?'🎮':'○';
+    dots.appendChild(dot);
   }
-  if(txt)txt.textContent=`${d.tokens}/${d.maxTokens} tokens`;
+  if(txt)txt.textContent=`${d.tokens}/${d.maxTokens||5} tokens`;
   if(tokenRegenInterval)clearInterval(tokenRegenInterval);
-  if(d.nextTokenMs&&d.tokens<d.maxTokens){
+  if(d.nextTokenMs&&d.tokens<(d.maxTokens||5)){
     let ms=d.nextTokenMs;
     const upd=()=>{
       if(ms<=0){if(regenTxt)regenTxt.textContent='Token ready! Refresh.';clearInterval(tokenRegenInterval);return;}
       const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
-      if(regenTxt)regenTxt.textContent=`Next token in: ${h>0?h+'h ':''} ${m}m ${s}s`;ms-=1000;
+      if(regenTxt)regenTxt.textContent=`Next token: ${h>0?h+'h ':''} ${m}m ${s}s`;
+      ms-=1000;
     };upd();tokenRegenInterval=setInterval(upd,1000);
-  } else if(regenTxt){regenTxt.textContent=d.tokens>=d.maxTokens?'Storage full — play to use tokens':'—';}
+  } else if(regenTxt){
+    regenTxt.textContent=d.tokens>=(d.maxTokens||5)?'Storage full — play to use tokens':'—';
+  }
   if(playBtn){
-    if(d.tokens<=0){playBtn.style.opacity='.5';playBtn.style.cursor='not-allowed';playBtn.innerHTML='<i class="fa-solid fa-lock"></i> No Tokens — Watch Ad or Wait';}
-    else{playBtn.style.opacity='1';playBtn.style.cursor='pointer';playBtn.innerHTML=`<i class="fa-solid fa-play"></i> PLAY NOW (${d.tokens} token${d.tokens!==1?'s':''})`;}
+    if(d.tokens<=0){
+      playBtn.style.opacity='.5';playBtn.style.cursor='not-allowed';
+      playBtn.innerHTML='<i class="fa-solid fa-lock"></i> No Tokens — Watch Ad or Wait';
+    } else {
+      playBtn.style.opacity='1';playBtn.style.cursor='pointer';
+      playBtn.innerHTML=`<i class="fa-solid fa-play"></i> PLAY NOW (${d.tokens} token${d.tokens!==1?'s':''})`;
+    }
   }
   const remaining=(d.adsTokensLimit||5)-(d.adsTokensToday||0);
   if(adTxt)adTxt.textContent=`${remaining} left today`;
@@ -1468,12 +1355,15 @@ function renderTokenUI(d){
 }
 
 async function openGame(){
+  if(!gameStatus){await loadGameStatus();}
   if(!gameStatus||gameStatus.tokens<=0){toast('error','No tokens! Watch an ad or wait for regen.');return;}
   try{
-    const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'play'})});
+    const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telegramId:tgUser.id,initData,action:'play'})});
     const d=await r.json();
-    if(!d.success){toast('error',d.error||'Cannot start game');return;}
-    gameStatus.tokens=d.tokens;renderTokenUI(gameStatus);
+    if(!d.success){toast('error',d.error||'Cannot start');return;}
+    gameStatus.tokens=d.tokens;
+    renderTokenUI(gameStatus);
   }catch{toast('error','Network error');return;}
   const frame=qs('#game-frame');
   frame.src='game.html';
@@ -1488,7 +1378,8 @@ async function onGameMessage(e){
   closeGame();
   if(egEarned>0){
     try{
-      const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'claim',egEarned,kills})});
+      const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({telegramId:tgUser.id,initData,action:'claim',egEarned,kills})});
       const d=await r.json();
       if(d.success&&d.reward>0){toast('success',`+${d.reward} EG from Archer Hunt!`);await refreshUser();}
     }catch{}
@@ -1503,44 +1394,52 @@ function closeGame(){
 }
 
 async function watchAdForToken(){
+  if(_adRunning){toast('warning','Ad already playing');return;}
   if(gameStatus&&gameStatus.tokens>=(gameStatus.maxTokens||5)){toast('warning','Token storage full! Play first.');return;}
   if(gameStatus&&(gameStatus.adsTokensToday||0)>=(gameStatus.adsTokensLimit||5)){toast('error','Daily ad token limit reached.');return;}
-  try{await showAdForReward('gigapub','Game Token Ad');}
-  catch{try{await showAdForReward('monetag','Game Token Ad');}catch{toast('error','Ad failed to load');return;}}
+  const net=Math.random()<0.5?'gigapub':'monetag';
+  const fb=net==='gigapub'?'monetag':'gigapub';
+  try{await showAdForReward(net,'Game Token Ad');}
+  catch{try{await showAdForReward(fb,'Game Token Ad');}catch{toast('error','Ad failed');return;}}
   try{
-    const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'adtoken'})});
+    const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telegramId:tgUser.id,initData,action:'adtoken'})});
     const d=await r.json();
-    if(d.success){toast('success',`🎮 +1 Token! You have ${d.tokens} tokens.`);gameStatus.tokens=d.tokens;renderTokenUI(gameStatus);}
+    if(d.success){toast('success',`🎮 +1 Token! You have ${d.tokens} tokens.`);if(gameStatus)gameStatus.tokens=d.tokens;renderTokenUI(gameStatus||d);}
     else toast('error',d.error||'Failed');
   }catch{toast('error','Network error');}
 }
 
+// ── UTILS ──────────────────────────────────────────────────────
+const qs=s=>document.querySelector(s);
+function show(id){document.getElementById(id).style.display='flex';}
+function hide(id){document.getElementById(id).style.display='none';}
+function openM(id){document.getElementById(id).classList.add('op');}
+function closeM(id){document.getElementById(id).classList.remove('op');}
+document.querySelectorAll('.mbg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('op');}));
+function tgAlert(msg){if(window.Telegram?.WebApp)window.Telegram.WebApp.showAlert(msg);else alert(msg);}
 function toast(icon,title){
   Swal.fire({toast:true,position:'top-end',icon,title,showConfirmButton:false,timer:2500,background:'#0b1610',color:'#e8f5ee',iconColor:icon==='success'?'#00ff87':icon==='error'?'#ef4444':'#f59e0b'});
 }
 
-// ── TOP-LEVEL ANIMATION ENGINE FOR EVERY .g3d BUTTON ──────────
-// Event delegation: works for both static buttons and ones rendered later by JS.
-document.addEventListener('pointerdown',e=>{
-  const el=e.target.closest('.g3d');
-  if(!el||el.disabled)return;
-  // haptic tick on real devices inside Telegram
-  try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');}catch{}
-  // ripple from touch point
-  const r=el.getBoundingClientRect();
-  const dot=document.createElement('span');
-  dot.className='ripple-dot';
-  dot.style.left=(e.clientX-r.left-7)+'px';
-  dot.style.top=(e.clientY-r.top-7)+'px';
-  el.appendChild(dot);
-  requestAnimationFrame(()=>dot.classList.add('go'));
-  setTimeout(()=>dot.remove(),600);
-  // shine sweep
-  el.classList.remove('shine-run');
-  void el.offsetWidth; // restart animation
-  el.classList.add('shine-run');
-},{passive:true});
-
+// ── ANTI-HACK ──────────────────────────────────────────────────
+(function(){
+  'use strict';
+  document.addEventListener('contextmenu',e=>e.preventDefault());
+  document.addEventListener('keydown',e=>{
+    if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['I','J','C','U'].includes(e.key))||(e.ctrlKey&&e.key==='U')){
+      e.preventDefault();return false;
+    }
+  });
+  let devOpen=false;
+  setInterval(()=>{
+    const t=window.outerWidth-window.innerWidth>200||window.outerHeight-window.innerHeight>200;
+    if(t&&!devOpen){
+      devOpen=true;
+      document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#060d0a;gap:16px;padding:32px;text-align:center"><div style="font-size:60px">🚫</div><h3 style="color:#ef4444;font-size:17px;font-weight:800">Access Denied</h3><p style="color:#5a8a6e;font-size:13px;line-height:1.7">Developer tools detected.<br>Please close DevTools and reopen the app.</p></div>';
+    }
+  },1000);
+})();
 </script>
 </body>
 </html>
