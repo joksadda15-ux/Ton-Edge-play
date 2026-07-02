@@ -1,15 +1,32 @@
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
-const TOKEN_REGEN_HOURS = 5;     // 1 token every 5 hours
-const MAX_TOKENS = 5;             // max stored tokens
-const ADS_TOKEN_LIMIT = 5;       // max tokens from ads per day
-const NEW_USER_FREE_TOKEN = 1;    // free token on signup
+const TOKEN_REGEN_HOURS = 5;
+const MAX_TOKENS = 5;
+const ADS_TOKEN_LIMIT = 5;
+const NEW_USER_FREE_TOKEN = 1;
+
+function regenTokens(tokens, lastRegen, now) {
+  if (!lastRegen || tokens >= MAX_TOKENS) return { tokens, newLastRegen: lastRegen };
+  const hoursPassed = (now - new Date(lastRegen)) / 3600000;
+  const regenCount = Math.floor(hoursPassed / TOKEN_REGEN_HOURS);
+  if (regenCount <= 0) return { tokens, newLastRegen: lastRegen };
+  const newTokens = Math.min(MAX_TOKENS, tokens + regenCount);
+  const newLastRegen = new Date(new Date(lastRegen).getTime() + regenCount * TOKEN_REGEN_HOURS * 3600000);
+  return { tokens: newTokens, newLastRegen };
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { telegramId, initData, action } = req.body || {};
+  // Support both GET (query) and POST (body)
+  const telegramId = req.query?.telegramId || req.body?.telegramId;
+  const initData   = req.query?.initData   || req.body?.initData || '';
+  const action     = req.query?.action     || req.body?.action || 'status';
+
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
   if (initData) {
@@ -19,131 +36,102 @@ export default async function handler(req, res) {
   }
 
   const tgId = String(telegramId);
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
 
   try {
     const db = await getDb();
     const users = db.collection('users');
     const user = await users.findOne({ telegramId: tgId });
+
+    // Auto-init gameData for new users
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
 
-    const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const gd = user.gameData || {};
+    let tokens = gd.tokens ?? NEW_USER_FREE_TOKEN;
 
-    // ── GET status ────────────────────────────────────────────
+    // Recalculate regen
+    const { tokens: regenedTokens, newLastRegen } = regenTokens(tokens, gd.lastTokenRegen, now);
+    if (regenedTokens !== tokens) {
+      tokens = regenedTokens;
+      await users.updateOne({ telegramId: tgId }, {
+        $set: { 'gameData.tokens': tokens, 'gameData.lastTokenRegen': newLastRegen }
+      });
+    }
+
+    // Time until next token
+    let nextTokenMs = null;
+    if (tokens < MAX_TOKENS) {
+      const base = newLastRegen || gd.lastTokenRegen || now;
+      const nextRegen = new Date(new Date(base).getTime() + TOKEN_REGEN_HOURS * 3600000);
+      nextTokenMs = Math.max(0, nextRegen - now);
+    }
+
+    // ── GET / status ──────────────────────────────────────────
     if (req.method === 'GET' || action === 'status') {
-      const gameData = user.gameData || {};
-      let tokens = gameData.tokens ?? NEW_USER_FREE_TOKEN;
-      const lastRegen = gameData.lastTokenRegen ? new Date(gameData.lastTokenRegen) : null;
-
-      // Calculate regenerated tokens since last check
-      if (lastRegen && tokens < MAX_TOKENS) {
-        const hoursPassed = (now - lastRegen) / 3600000;
-        const regenTokens = Math.floor(hoursPassed / TOKEN_REGEN_HOURS);
-        if (regenTokens > 0) {
-          tokens = Math.min(MAX_TOKENS, tokens + regenTokens);
-          const newLastRegen = new Date(lastRegen.getTime() + regenTokens * TOKEN_REGEN_HOURS * 3600000);
-          await users.updateOne({ telegramId: tgId }, {
-            $set: { 'gameData.tokens': tokens, 'gameData.lastTokenRegen': newLastRegen }
-          });
-        }
-      }
-
-      // Time until next token
-      let nextTokenMs = null;
-      if (tokens < MAX_TOKENS) {
-        const base = lastRegen || now;
-        const nextRegen = new Date(base.getTime() + TOKEN_REGEN_HOURS * 3600000);
-        nextTokenMs = Math.max(0, nextRegen - now);
-      }
-
       return res.status(200).json({
         success: true,
         tokens,
         maxTokens: MAX_TOKENS,
         nextTokenMs,
-        adsTokensToday: gameData.adsTokensToday?.[today] || 0,
+        adsTokensToday: gd.adsTokensToday?.[today] || 0,
         adsTokensLimit: ADS_TOKEN_LIMIT,
-        totalGamesPlayed: gameData.totalGamesPlayed || 0,
-        bestScore: gameData.bestScore || 0,
+        totalGamesPlayed: gd.totalGamesPlayed || 0,
+        bestScore: gd.bestScore || 0,
+        totalEGEarned: gd.totalEGEarned || 0,
       });
     }
 
-    // ── USE token to play ─────────────────────────────────────
+    // ── POST actions ──────────────────────────────────────────
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+    // play — consume 1 token
     if (action === 'play') {
-      const gameData = user.gameData || {};
-      let tokens = gameData.tokens ?? NEW_USER_FREE_TOKEN;
-
-      // Recalc regen
-      const lastRegen = gameData.lastTokenRegen ? new Date(gameData.lastTokenRegen) : null;
-      if (lastRegen && tokens < MAX_TOKENS) {
-        const regenTokens = Math.floor((now - lastRegen) / (TOKEN_REGEN_HOURS * 3600000));
-        if (regenTokens > 0) tokens = Math.min(MAX_TOKENS, tokens + regenTokens);
-      }
-
       if (tokens <= 0) return res.status(400).json({ error: 'No tokens. Watch ads or wait for regen.' });
-
       const newTokens = tokens - 1;
-      const updateData = { 'gameData.tokens': newTokens, 'gameData.totalGamesPlayed': (gameData.totalGamesPlayed || 0) + 1 };
-      // Set regen timer if tokens were full
-      if (tokens === MAX_TOKENS || !lastRegen) {
-        updateData['gameData.lastTokenRegen'] = now;
-      }
-
+      const updateData = {
+        'gameData.tokens': newTokens,
+        'gameData.totalGamesPlayed': (gd.totalGamesPlayed || 0) + 1,
+      };
+      if (!gd.lastTokenRegen || tokens === MAX_TOKENS) updateData['gameData.lastTokenRegen'] = now;
       await users.updateOne({ telegramId: tgId }, { $set: updateData });
-      return res.status(200).json({ success: true, tokens: newTokens, canPlay: true });
+      return res.status(200).json({ success: true, tokens: newTokens });
     }
 
-    // ── CLAIM game EG reward ──────────────────────────────────
+    // claim — give EG reward after game
     if (action === 'claim') {
-      const { egEarned, kills } = req.body;
-      if (!egEarned || egEarned < 0) return res.status(400).json({ error: 'Invalid reward' });
-
-      // Cap max reward per game to prevent abuse (max ~50 EG)
-      const cappedEG = Math.min(Math.round(egEarned * 10), 50);
-      if (cappedEG <= 0) return res.status(200).json({ success: true, reward: 0 });
-
-      const gameData = user.gameData || {};
-      const bestScore = Math.max(gameData.bestScore || 0, cappedEG);
-
-      await users.updateOne(
-        { telegramId: tgId },
-        {
-          $inc: { egBalance: cappedEG },
-          $set: { 'gameData.bestScore': bestScore, 'gameData.lastPlayed': now }
-        }
-      );
-
-      return res.status(200).json({ success: true, reward: cappedEG });
+      const egEarned = parseFloat(req.body?.egEarned) || 0;
+      const kills = parseInt(req.body?.kills) || 0;
+      if (egEarned < 0) return res.status(400).json({ error: 'Invalid reward' });
+      const reward = Math.min(Math.max(Math.round(egEarned), 0), 50); // max 50 EG/game
+      if (reward <= 0) return res.status(200).json({ success: true, reward: 0 });
+      const bestScore = Math.max(gd.bestScore || 0, reward);
+      await users.updateOne({ telegramId: tgId }, {
+        $inc: { egBalance: reward, 'gameData.totalEGEarned': reward },
+        $set: { 'gameData.bestScore': bestScore, 'gameData.lastPlayed': now }
+      });
+      return res.status(200).json({ success: true, reward });
     }
 
-    // ── Watch ad to earn token ────────────────────────────────
+    // adtoken — give +1 token after ad
     if (action === 'adtoken') {
-      const gameData = user.gameData || {};
-      const todayAds = gameData.adsTokensToday?.[today] || 0;
-
+      const todayAds = gd.adsTokensToday?.[today] || 0;
       if (todayAds >= ADS_TOKEN_LIMIT)
         return res.status(400).json({ error: `Daily ad token limit (${ADS_TOKEN_LIMIT}) reached.` });
-
-      let tokens = gameData.tokens ?? NEW_USER_FREE_TOKEN;
       if (tokens >= MAX_TOKENS)
-        return res.status(400).json({ error: 'Token storage full. Play first.' });
-
+        return res.status(400).json({ error: 'Token storage full. Play a game first.' });
       const newTokens = Math.min(MAX_TOKENS, tokens + 1);
-      await users.updateOne(
-        { telegramId: tgId },
-        {
-          $set: {
-            'gameData.tokens': newTokens,
-            [`gameData.adsTokensToday.${today}`]: todayAds + 1
-          }
+      await users.updateOne({ telegramId: tgId }, {
+        $set: {
+          'gameData.tokens': newTokens,
+          [`gameData.adsTokensToday.${today}`]: todayAds + 1,
         }
-      );
-
+      });
       return res.status(200).json({ success: true, tokens: newTokens, adsToday: todayAds + 1 });
     }
 
-    return res.status(400).json({ error: 'Invalid action' });
+    return res.status(400).json({ error: 'Invalid action. Use: status | play | claim | adtoken' });
   } catch (err) {
     console.error('game.js error:', err);
     return res.status(500).json({ error: 'Server error' });
