@@ -566,88 +566,54 @@ input,select,button{font-family:'Inter',sans-serif}
       </div>
     </div>
 
-    <!-- PLAY GAME -->
+    <!-- PLAY GAMES -->
     <div class="sec" id="sec-play">
 
-      <!-- BIG HERO PLAY CARD — FarmGram style -->
-      <div style="position:relative;background:linear-gradient(160deg,#0d0a1a 0%,#1a0818 40%,#200a10 100%);border:1px solid rgba(244,63,94,.2);border-radius:24px;overflow:hidden;margin-bottom:14px">
-
-        <!-- Background glow -->
-        <div style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(244,63,94,.12),transparent 70%);border-radius:50%;pointer-events:none"></div>
-        <div style="position:absolute;bottom:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(245,158,11,.07),transparent 70%);border-radius:50%;pointer-events:none"></div>
-
-        <!-- Game banner image area -->
-        <div style="width:100%;height:160px;background:linear-gradient(135deg,#0a0618,#1a0a20,#0d1020);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
-          <div style="position:absolute;inset:0;background:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 160%22><text y=%22120%22 font-size=%22130%22 opacity=%22.06%22>🏹</text></svg>') center/contain no-repeat"></div>
-          <div style="text-align:center;z-index:1">
-            <div style="font-size:52px;margin-bottom:6px;filter:drop-shadow(0 0 20px rgba(244,63,94,.6))">🏹</div>
-            <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:900;color:#fff;letter-spacing:1px;text-shadow:0 0 20px rgba(244,63,94,.5)">ARCHER HUNT</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;letter-spacing:2px;text-transform:uppercase">Hunt · Earn · Repeat</div>
+      <!-- LUCKY SPIN CARD -->
+      <div class="card cp" style="margin-bottom:14px;position:relative;overflow:hidden;border:1px solid rgba(96,165,250,.25)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="font-size:38px">🎡</div>
+          <div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:900;color:#fff">Lucky Spin</div>
+            <div style="font-size:11px;color:var(--muted)">1 free spin daily · then every 2h with an ad</div>
           </div>
         </div>
-
-        <!-- Quick stats row -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid rgba(244,63,94,.12);border-bottom:1px solid rgba(244,63,94,.12)">
-          <div style="padding:10px;text-align:center;border-right:1px solid rgba(244,63,94,.1)">
-            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px">Time</div>
-            <div style="font-size:15px;font-weight:800;color:#fff;margin-top:2px">45s</div>
-          </div>
-          <div style="padding:10px;text-align:center;border-right:1px solid rgba(244,63,94,.1)">
-            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px">Arrows</div>
-            <div style="font-size:15px;font-weight:800;color:#fff;margin-top:2px">20</div>
-          </div>
-          <div style="padding:10px;text-align:center">
-            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px">Best</div>
-            <div style="font-size:15px;font-weight:800;color:#f59e0b;margin-top:2px" id="game-best">0 EG</div>
-          </div>
-        </div>
-
-        <!-- Token display -->
-        <div style="padding:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1px">🎮 Game Tokens</span>
-            <span style="font-size:10px;color:rgba(255,255,255,.35)" id="token-count-txt">Loading...</span>
-          </div>
-          <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px" id="token-dots"></div>
-          <div style="font-size:10px;color:rgba(255,255,255,.3);text-align:center;margin-bottom:16px" id="token-regen-txt">—</div>
-
-          <!-- BIG PLAY BUTTON -->
-          <button id="play-game-btn" onclick="openGame()" style="width:100%;background:linear-gradient(135deg,#f43f5e,#e11d48,#be123c);color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:18px;padding:18px;border-radius:18px;border:none;cursor:pointer;box-shadow:0 8px 32px rgba(244,63,94,.4),0 2px 8px rgba(0,0,0,.4);transition:all .2s;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:12px;position:relative;overflow:hidden">
-            <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1),transparent);pointer-events:none"></div>
-            <i class="fa-solid fa-play" style="font-size:16px"></i>
-            <span>PLAY NOW</span>
-          </button>
-
-          <!-- Ad token button -->
-          <button onclick="watchAdForToken()" style="width:100%;margin-top:8px;background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.2);color:rgba(244,63,94,.8);font-size:12px;font-weight:700;padding:11px;border-radius:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s">
-            <i class="fa-solid fa-eye"></i>
-            Watch Ad — Get Token
-            <span id="ad-token-count" style="background:rgba(244,63,94,.15);padding:2px 9px;border-radius:20px;font-size:10px;color:rgba(244,63,94,.9)"></span>
-          </button>
+        <div style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:10px" id="spin-status-txt">Loading...</div>
+        <button id="spin-play-btn" onclick="playMiniGame('spin')" style="width:100%;background:linear-gradient(135deg,#60a5fa,#3b82f6,#2563eb);color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:16px;padding:15px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 6px 24px rgba(96,165,250,.35)">
+          <i class="fa-solid fa-play"></i> <span id="spin-btn-txt">Loading...</span>
+        </button>
+        <div style="display:flex;justify-content:space-around;margin-top:10px;font-size:10px;color:var(--muted)">
+          <span>Plays: <b id="spin-total" style="color:#fff">0</b></span>
+          <span>Earned: <b id="spin-earned" style="color:#f59e0b">0 EG</b></span>
         </div>
       </div>
 
-      <!-- Stats row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="card cp" style="text-align:center">
-          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Games Played</div>
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:800;color:#f43f5e" id="game-total">0</div>
+      <!-- MYSTERY CHEST CARD -->
+      <div class="card cp" style="margin-bottom:14px;position:relative;overflow:hidden;border:1px solid rgba(168,85,247,.25)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="font-size:38px">🎁</div>
+          <div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:900;color:#fff">Mystery Chest</div>
+            <div style="font-size:11px;color:var(--muted)">1 free open daily · then every 2h with an ad</div>
+          </div>
         </div>
-        <div class="card cp" style="text-align:center">
-          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Total Earned</div>
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:800;color:#f59e0b" id="game-earned">0 EG</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:10px" id="chest-status-txt">Loading...</div>
+        <button id="chest-play-btn" onclick="playMiniGame('chest')" style="width:100%;background:linear-gradient(135deg,#a855f7,#9333ea,#7e22ce);color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:16px;padding:15px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 6px 24px rgba(168,85,247,.35)">
+          <i class="fa-solid fa-gift"></i> <span id="chest-btn-txt">Loading...</span>
+        </button>
+        <div style="display:flex;justify-content:space-around;margin-top:10px;font-size:10px;color:var(--muted)">
+          <span>Opens: <b id="chest-total" style="color:#fff">0</b></span>
+          <span>Earned: <b id="chest-earned" style="color:#f59e0b">0 EG</b></span>
         </div>
       </div>
 
       <!-- How to play -->
       <div class="card cp">
-        <div class="sec-title"><i class="fa-solid fa-circle-info" style="color:#f43f5e"></i>How to Play</div>
+        <div class="sec-title"><i class="fa-solid fa-circle-info" style="color:#60a5fa"></i>How to Play</div>
         <div style="display:flex;flex-direction:column;gap:9px;font-size:12px;color:var(--muted)">
-          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(244,63,94,.15);color:#f43f5e;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">1</span><span>Hold & drag anywhere to aim your bow</span></div>
-          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(244,63,94,.15);color:#f43f5e;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">2</span><span>Release to shoot — 1.5s gap between arrows</span></div>
-          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(245,158,11,.15);color:#f59e0b;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">3</span><span>Hit birds to earn <b style="color:#f59e0b">EG coins</b> — rare birds = more EG</span></div>
-          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(244,63,94,.15);color:#f43f5e;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">4</span><span>45 second time limit per round</span></div>
-          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(96,165,250,.15);color:#60a5fa;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">5</span><span>New token every 5 hours · Watch ads for more tokens</span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(96,165,250,.15);color:#60a5fa;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">1</span><span>Each game gives you <b style="color:#fff">1 free play every day</b></span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(96,165,250,.15);color:#60a5fa;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">2</span><span>After that, watch an ad every <b style="color:#fff">2 hours</b> for another play</span></div>
+          <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:rgba(245,158,11,.15);color:#f59e0b;font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0">3</span><span>Reward amount is random — <b style="color:#f59e0b">Mystery Chest</b> has rare high-value openings</span></div>
         </div>
       </div>
     </div>
@@ -661,24 +627,13 @@ input,select,button{font-family:'Inter',sans-serif}
       <button class="nb act g3d" id="nb-home" onclick="switchTab('home')"><i class="fa-solid fa-house"></i><span>Home</span></button>
       <button class="nb g3d" id="nb-market" onclick="switchTab('market')"><i class="fa-solid fa-store"></i><span>Market</span></button>
       <button class="nb-play-center" id="nb-play" onclick="switchTab('play')">
-        <div class="nb-play-ico"><i class="fa-solid fa-gamepad"></i></div>
+        <div class="nb-play-ico"><i class="fa-solid fa-dice"></i></div>
         <span>Play</span>
       </button>
       <button class="nb g3d" id="nb-tasks" onclick="switchTab('tasks')"><i class="fa-solid fa-list-check"></i><span>Tasks</span></button>
       <button class="nb g3d" id="nb-refer" onclick="switchTab('refer')"><i class="fa-solid fa-users"></i><span>Refer</span></button>
     </div>
   </div>
-</div>
-
-<!-- GAME OVERLAY -->
-<div id="game-overlay" style="position:fixed;inset:0;z-index:300;display:none;flex-direction:column;background:#000">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(0,0,0,.8);border-bottom:1px solid rgba(244,63,94,.3);flex-shrink:0">
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:14px;font-weight:800;color:#fff">🏹 Archer Hunt</span>
-    </div>
-    <button onclick="closeGame()" style="background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.4);color:#f43f5e;font-size:12px;font-weight:700;padding:6px 14px;border-radius:9px;cursor:pointer">✕ Exit</button>
-  </div>
-  <iframe id="game-frame" src="" style="flex:1;border:none;width:100%;height:100%" allow="autoplay"></iframe>
 </div>
 
 <!-- SHEET -->
@@ -901,7 +856,7 @@ async function enterApp(){
 
   const ref=window.Telegram?.WebApp?.initDataUnsafe?.start_param||'';
   await registerOrLoad(ref);
-  renderMarket();loadTasks();loadRefData();checkMining();loadGameStatus();
+  renderMarket();loadTasks();loadRefData();checkMining();loadMiniGameStatus('spin');loadMiniGameStatus('chest');
   setInterval(checkChannelPeriodic,3*60*1000);
 }
 
@@ -964,7 +919,7 @@ function switchTab(t){
   qs('#scr').scrollTop=0;
   if(t==='market'){renderMarket();renderMySpirits();}
   if(t==='refer')loadRefData();
-  if(t==='play')loadGameStatus();
+  if(t==='play'){loadMiniGameStatus('spin');loadMiniGameStatus('chest');}
   remindChannelIfNeeded();
 }
 
@@ -1426,105 +1381,65 @@ function closeM(id){document.getElementById(id).classList.remove('op');}
 document.querySelectorAll('.mbg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('op');}));
 function tgAlert(msg){if(window.Telegram?.WebApp)window.Telegram.WebApp.showAlert(msg);else alert(msg);}
 // ── GAME ─────────────────────────────────────────────────────
-let gameStatus=null,tokenRegenInterval=null;
 
-async function loadGameStatus(){
+const miniGameStatus={spin:null,chest:null};
+const miniGameIntervals={spin:null,chest:null};
+const MINI_COLORS={spin:'#60a5fa',chest:'#a855f7'};
+
+async function loadMiniGameStatus(gameKey){
   try{
-    const r=await fetch(`${API}/game?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const r=await fetch(`${API}/minigame?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}&game=${gameKey}`);
     const d=await r.json();
     if(!d.success)return;
-    gameStatus=d;renderTokenUI(d);
+    miniGameStatus[gameKey]=d;renderMiniGameUI(gameKey,d);
   }catch{}
 }
 
-function renderTokenUI(d){
-  const dots=qs('#token-dots'),txt=qs('#token-count-txt'),regenTxt=qs('#token-regen-txt'),adTxt=qs('#ad-token-count'),playBtn=qs('#play-game-btn');
-  if(!dots)return;
-  // dots now represent banked AD tokens only (max = adTokensLimit), not a combined pool
-  dots.innerHTML='';
-  const maxAd=d.adTokensLimit||5;
-  for(let i=0;i<maxAd;i++){
-    const dot=document.createElement('div');
-    const filled=i<(d.adTokensAvailable||0);
-    dot.style.cssText=`width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid ${filled?'rgba(244,63,94,.5)':'rgba(255,255,255,.1)'};background:${filled?'rgba(244,63,94,.2)':'rgba(0,0,0,.3)'}`;
-    dot.textContent=filled?'🎮':'○';dots.appendChild(dot);
-  }
-  if(txt)txt.textContent=`${d.adTokensAvailable||0} ad token${(d.adTokensAvailable||0)!==1?'s':''} banked`;
-  if(tokenRegenInterval)clearInterval(tokenRegenInterval);
-  if(d.freeAvailable){
-    if(regenTxt)regenTxt.textContent='🎁 Free daily play ready!';
-  } else if(d.nextFreeMs){
-    let ms=d.nextFreeMs;
+function renderMiniGameUI(gameKey,d){
+  const statusTxt=qs(`#${gameKey}-status-txt`),btn=qs(`#${gameKey}-play-btn`),btnTxt=qs(`#${gameKey}-btn-txt`);
+  if(!statusTxt)return;
+  if(miniGameIntervals[gameKey])clearInterval(miniGameIntervals[gameKey]);
+
+  if(d.canPlay&&d.freeAvailable){
+    statusTxt.textContent='🎁 Free daily play ready!';
+    btn.style.opacity='1';btn.style.cursor='pointer';
+    btnTxt.textContent='Play (Free)';
+  } else if(d.canPlay){
+    statusTxt.textContent='📺 Watch an ad to play now';
+    btn.style.opacity='1';btn.style.cursor='pointer';
+    btnTxt.textContent='Watch Ad & Play';
+  } else {
+    btn.style.opacity='.5';btn.style.cursor='not-allowed';
+    btnTxt.textContent='On Cooldown';
+    let ms=d.nextPlayMs||d.nextFreeMs||0;
     const upd=()=>{
-      if(ms<=0){if(regenTxt)regenTxt.textContent='Free play ready! Refresh.';clearInterval(tokenRegenInterval);return;}
+      if(ms<=0){statusTxt.textContent='Ready! Refresh.';clearInterval(miniGameIntervals[gameKey]);return;}
       const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
-      if(regenTxt)regenTxt.textContent=`Next free play in: ${h>0?h+'h ':''} ${m}m ${s}s`;ms-=1000;
-    };upd();tokenRegenInterval=setInterval(upd,1000);
+      statusTxt.textContent=`Next play in: ${h>0?h+'h ':''} ${m}m ${s}s`;ms-=1000;
+    };upd();miniGameIntervals[gameKey]=setInterval(upd,1000);
   }
-  const canPlay=d.freeAvailable||(d.adTokensAvailable||0)>0;
-  if(playBtn){
-    if(!canPlay){playBtn.style.opacity='.5';playBtn.style.cursor='not-allowed';playBtn.innerHTML='<i class="fa-solid fa-lock"></i> No Plays Left — Watch Ad or Wait';}
-    else if(d.freeAvailable){playBtn.style.opacity='1';playBtn.style.cursor='pointer';playBtn.innerHTML='<i class="fa-solid fa-play"></i> PLAY NOW (Free Daily Play)';}
-    else{playBtn.style.opacity='1';playBtn.style.cursor='pointer';playBtn.innerHTML=`<i class="fa-solid fa-play"></i> PLAY NOW (${d.adTokensAvailable} ad token${d.adTokensAvailable!==1?'s':''})`;}
-  }
-  const remaining=d.adTokensRemainingToday??((d.adTokensLimit||5)-0);
-  if(adTxt)adTxt.textContent=`${remaining} ad-watches left today`;
-  const best=qs('#game-best'),total=qs('#game-total');
-  if(best)best.textContent=(d.bestScore||0)+' EG';
-  if(total)total.textContent=d.totalGamesPlayed||0;
 }
 
-async function openGame(){
-  const canPlay=gameStatus&&(gameStatus.freeAvailable||(gameStatus.adTokensAvailable||0)>0);
-  if(!canPlay){toast('error','No plays left! Watch an ad or wait for your free daily play.');return;}
-  let sessionId;
+async function playMiniGame(gameKey){
+  const d=miniGameStatus[gameKey];
+  if(!d||!d.canPlay){toast('error','No play available yet. Wait for the timer or your free daily play.');return;}
+
+  // Ad required unless today's free play is still available
+  if(d.requiresAd){
+    try{await showAdForReward('gigapub',`${d.label} Ad`);}
+    catch{try{await showAdForReward('monetag',`${d.label} Ad`);}catch{toast('error','Ad failed to load');return;}}
+  }
+
   try{
-    const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'play'})});
-    const d=await r.json();
-    if(!d.success){toast('error',d.error||'Cannot start game');return;}
-    sessionId=d.sessionId;
-    await loadGameStatus(); // refresh free/ad-token state after consuming a play
-  }catch{toast('error','Network error');return;}
-  const frame=qs('#game-frame');
-  frame.src='game.html';
-  frame.dataset.sessionId=sessionId;
-  qs('#game-overlay').style.display='flex';
-  window.addEventListener('message',onGameMessage);
-}
-
-async function onGameMessage(e){
-  if(e.data?.type!=='GAME_END')return;
-  window.removeEventListener('message',onGameMessage);
-  const{egEarned,kills}=e.data;
-  closeGame();
-  if(egEarned>0){
-    try{
-      const sessionId=qs('#game-frame')?.dataset.sessionId;
-      const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'claim',egEarned,kills,sessionId})});
-      const d=await r.json();
-      if(d.success&&d.reward>0){toast('success',`+${d.reward} EG from Archer Hunt!`);await refreshUser();}
-      else if(!d.success){toast('error',d.error||'Claim failed');}
-    }catch{}
-  }
-  await loadGameStatus();
-}
-
-function closeGame(){
-  const frame=qs('#game-frame');if(frame)frame.src='';
-  qs('#game-overlay').style.display='none';
-  window.removeEventListener('message',onGameMessage);
-}
-
-async function watchAdForToken(){
-  if(gameStatus&&gameStatus.tokens>=(gameStatus.maxTokens||5)){toast('warning','Token storage full! Play first.');return;}
-  if(gameStatus&&(gameStatus.adsTokensToday||0)>=(gameStatus.adsTokensLimit||5)){toast('error','Daily ad token limit reached.');return;}
-  try{await showAdForReward('gigapub','Game Token Ad');}
-  catch{try{await showAdForReward('monetag','Game Token Ad');}catch{toast('error','Ad failed to load');return;}}
-  try{
-    const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'adtoken'})});
-    const d=await r.json();
-    if(d.success){toast('success',`🎮 +1 Token! You have ${d.tokens} tokens.`);gameStatus.tokens=d.tokens;renderTokenUI(gameStatus);}
-    else toast('error',d.error||'Failed');
+    const r=await fetch(`${API}/minigame`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'play',game:gameKey})});
+    const res=await r.json();
+    if(!res.success){toast('error',res.error||'Could not play');await loadMiniGameStatus(gameKey);return;}
+    toast('success',`${gameKey==='spin'?'🎡':'🎁'} +${res.reward} EG!`);
+    await refreshUser();
+    await loadMiniGameStatus(gameKey);
+    const totalEl=qs(`#${gameKey}-total`),earnedEl=qs(`#${gameKey}-earned`);
+    if(totalEl)totalEl.textContent=(parseInt(totalEl.textContent)||0)+1;
+    if(earnedEl)earnedEl.textContent=`${(parseFloat(earnedEl.textContent)||0)+res.reward} EG`;
   }catch{toast('error','Network error');}
 }
 
