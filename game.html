@@ -972,12 +972,25 @@ function endGame(){
   oDesc.style.display='none';
   goBtn.textContent='Hunt Again 🏹';
   overlay.style.display='flex';
-  // Send result to parent app
-  try{window.parent.postMessage({type:'GAME_END',egEarned:totalEG,kills:kills},'*');}catch(e){}
+  // Wait so the player actually sees the result screen before the
+  // parent app closes this view — previously this fired instantly,
+  // making the game feel like it "reloaded" the moment it ended.
+  setTimeout(()=>{
+    try{window.parent.postMessage({type:'GAME_END',egEarned:totalEG,kills:kills},'*');}catch(e){}
+  },1800);
 }
 
+let gameHasStarted=false;
 goBtn.addEventListener('click',()=>{
-  // Hunt Again = send end signal, parent will handle new token
+  if(!gameHasStarted){
+    // First tap ("Begin Hunt") — actually start the round.
+    gameHasStarted=true;
+    startGame();
+    return;
+  }
+  // Subsequent tap ("Hunt Again") — this round's token is spent.
+  // Tell the parent app the round ended; parent closes this game
+  // and the user spends a fresh token/free-play to open a new round.
   try{window.parent.postMessage({type:'GAME_END',egEarned:totalEG,kills:kills},'*');}catch(e){}
 });
 requestAnimationFrame(ts=>{lastT=ts;loop(ts);});
