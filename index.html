@@ -1388,7 +1388,7 @@ const MINI_COLORS={spin:'#60a5fa',chest:'#a855f7'};
 
 async function loadMiniGameStatus(gameKey){
   try{
-    const r=await fetch(`${API}/minigame?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}&game=${gameKey}`);
+    const r=await fetch(`${API}/miniapp?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}&game=${gameKey}`);
     const d=await r.json();
     if(!d.success)return;
     miniGameStatus[gameKey]=d;renderMiniGameUI(gameKey,d);
@@ -1431,7 +1431,7 @@ async function playMiniGame(gameKey){
   }
 
   try{
-    const r=await fetch(`${API}/minigame`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'play',game:gameKey})});
+    const r=await fetch(`${API}/miniapp`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'play',game:gameKey})});
     const res=await r.json();
     if(!res.success){toast('error',res.error||'Could not play');await loadMiniGameStatus(gameKey);return;}
     toast('success',`${gameKey==='spin'?'🎡':'🎁'} +${res.reward} EG!`);
