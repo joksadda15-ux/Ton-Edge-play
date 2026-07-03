@@ -1440,43 +1440,54 @@ async function loadGameStatus(){
 function renderTokenUI(d){
   const dots=qs('#token-dots'),txt=qs('#token-count-txt'),regenTxt=qs('#token-regen-txt'),adTxt=qs('#ad-token-count'),playBtn=qs('#play-game-btn');
   if(!dots)return;
+  // dots now represent banked AD tokens only (max = adTokensLimit), not a combined pool
   dots.innerHTML='';
-  for(let i=0;i<d.maxTokens;i++){
+  const maxAd=d.adTokensLimit||5;
+  for(let i=0;i<maxAd;i++){
     const dot=document.createElement('div');
-    dot.style.cssText=`width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid ${i<d.tokens?'rgba(244,63,94,.5)':'rgba(255,255,255,.1)'};background:${i<d.tokens?'rgba(244,63,94,.2)':'rgba(0,0,0,.3)'}`;
-    dot.textContent=i<d.tokens?'🎮':'○';dots.appendChild(dot);
+    const filled=i<(d.adTokensAvailable||0);
+    dot.style.cssText=`width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid ${filled?'rgba(244,63,94,.5)':'rgba(255,255,255,.1)'};background:${filled?'rgba(244,63,94,.2)':'rgba(0,0,0,.3)'}`;
+    dot.textContent=filled?'🎮':'○';dots.appendChild(dot);
   }
-  if(txt)txt.textContent=`${d.tokens}/${d.maxTokens} tokens`;
+  if(txt)txt.textContent=`${d.adTokensAvailable||0} ad token${(d.adTokensAvailable||0)!==1?'s':''} banked`;
   if(tokenRegenInterval)clearInterval(tokenRegenInterval);
-  if(d.nextTokenMs&&d.tokens<d.maxTokens){
-    let ms=d.nextTokenMs;
+  if(d.freeAvailable){
+    if(regenTxt)regenTxt.textContent='🎁 Free daily play ready!';
+  } else if(d.nextFreeMs){
+    let ms=d.nextFreeMs;
     const upd=()=>{
-      if(ms<=0){if(regenTxt)regenTxt.textContent='Token ready! Refresh.';clearInterval(tokenRegenInterval);return;}
+      if(ms<=0){if(regenTxt)regenTxt.textContent='Free play ready! Refresh.';clearInterval(tokenRegenInterval);return;}
       const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
-      if(regenTxt)regenTxt.textContent=`Next token in: ${h>0?h+'h ':''} ${m}m ${s}s`;ms-=1000;
+      if(regenTxt)regenTxt.textContent=`Next free play in: ${h>0?h+'h ':''} ${m}m ${s}s`;ms-=1000;
     };upd();tokenRegenInterval=setInterval(upd,1000);
-  } else if(regenTxt){regenTxt.textContent=d.tokens>=d.maxTokens?'Storage full — play to use tokens':'—';}
-  if(playBtn){
-    if(d.tokens<=0){playBtn.style.opacity='.5';playBtn.style.cursor='not-allowed';playBtn.innerHTML='<i class="fa-solid fa-lock"></i> No Tokens — Watch Ad or Wait';}
-    else{playBtn.style.opacity='1';playBtn.style.cursor='pointer';playBtn.innerHTML=`<i class="fa-solid fa-play"></i> PLAY NOW (${d.tokens} token${d.tokens!==1?'s':''})`;}
   }
-  const remaining=(d.adsTokensLimit||5)-(d.adsTokensToday||0);
-  if(adTxt)adTxt.textContent=`${remaining} left today`;
+  const canPlay=d.freeAvailable||(d.adTokensAvailable||0)>0;
+  if(playBtn){
+    if(!canPlay){playBtn.style.opacity='.5';playBtn.style.cursor='not-allowed';playBtn.innerHTML='<i class="fa-solid fa-lock"></i> No Plays Left — Watch Ad or Wait';}
+    else if(d.freeAvailable){playBtn.style.opacity='1';playBtn.style.cursor='pointer';playBtn.innerHTML='<i class="fa-solid fa-play"></i> PLAY NOW (Free Daily Play)';}
+    else{playBtn.style.opacity='1';playBtn.style.cursor='pointer';playBtn.innerHTML=`<i class="fa-solid fa-play"></i> PLAY NOW (${d.adTokensAvailable} ad token${d.adTokensAvailable!==1?'s':''})`;}
+  }
+  const remaining=d.adTokensRemainingToday??((d.adTokensLimit||5)-0);
+  if(adTxt)adTxt.textContent=`${remaining} ad-watches left today`;
   const best=qs('#game-best'),total=qs('#game-total');
   if(best)best.textContent=(d.bestScore||0)+' EG';
   if(total)total.textContent=d.totalGamesPlayed||0;
 }
 
 async function openGame(){
-  if(!gameStatus||gameStatus.tokens<=0){toast('error','No tokens! Watch an ad or wait for regen.');return;}
+  const canPlay=gameStatus&&(gameStatus.freeAvailable||(gameStatus.adTokensAvailable||0)>0);
+  if(!canPlay){toast('error','No plays left! Watch an ad or wait for your free daily play.');return;}
+  let sessionId;
   try{
     const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'play'})});
     const d=await r.json();
     if(!d.success){toast('error',d.error||'Cannot start game');return;}
-    gameStatus.tokens=d.tokens;renderTokenUI(gameStatus);
+    sessionId=d.sessionId;
+    await loadGameStatus(); // refresh free/ad-token state after consuming a play
   }catch{toast('error','Network error');return;}
   const frame=qs('#game-frame');
   frame.src='game.html';
+  frame.dataset.sessionId=sessionId;
   qs('#game-overlay').style.display='flex';
   window.addEventListener('message',onGameMessage);
 }
@@ -1488,9 +1499,11 @@ async function onGameMessage(e){
   closeGame();
   if(egEarned>0){
     try{
-      const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'claim',egEarned,kills})});
+      const sessionId=qs('#game-frame')?.dataset.sessionId;
+      const r=await fetch(`${API}/game`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'claim',egEarned,kills,sessionId})});
       const d=await r.json();
       if(d.success&&d.reward>0){toast('success',`+${d.reward} EG from Archer Hunt!`);await refreshUser();}
+      else if(!d.success){toast('error',d.error||'Claim failed');}
     }catch{}
   }
   await loadGameStatus();
