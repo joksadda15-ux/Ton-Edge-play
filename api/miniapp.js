@@ -7,24 +7,45 @@ const COOLDOWN_MS = 2 * 3600000;       // otherwise 1 play per rolling 2h, per g
 const GAMES = {
   spin: {
     label: 'Lucky Spin',
-    // weighted reward table — [min, max, weight]
-    table: [[1, 2, 40], [3, 4, 30], [5, 7, 18], [8, 10, 9], [11, 15, 3]],
+    // Fixed 6 values. Must stay in sync with SPIN_SEGMENTS in index.html (client draws
+    // the wheel from its own copy of these numbers and looks up index by value, so the
+    // ORDER here doesn't have to match the client — only the SET of 6 numbers must match).
+    values: [5, 8, 12, 15, 20, 25],
+    weights: [100, 100, 100, 120, 120, 60], // sums to 600 → 16.67/16.67/16.67/20/20/10 %
   },
   chest: {
     label: 'Mystery Chest',
-    table: [[1, 3, 60], [4, 8, 30], [10, 20, 10]], // common / rare / epic
+    // [tierName, min, max, weight] — weights sum to 100
+    tiers: [
+      ['Silver', 1, 8, 40],
+      ['Gold', 9, 20, 50],
+      ['Epic', 21, 28, 9],
+      ['Legendary', 30, 50, 1],
+    ],
   },
 };
 
-function rollReward(table) {
-  const totalWeight = table.reduce((s, r) => s + r[2], 0);
-  let roll = Math.random() * totalWeight;
-  for (const [min, max, weight] of table) {
-    if (roll < weight) return min + Math.floor(Math.random() * (max - min + 1));
+function rollSpin() {
+  const { values, weights } = GAMES.spin;
+  const total = weights.reduce((s, w) => s + w, 0);
+  let roll = Math.random() * total;
+  for (let i = 0; i < values.length; i++) {
+    if (roll < weights[i]) return { reward: values[i] };
+    roll -= weights[i];
+  }
+  return { reward: values[values.length - 1] };
+}
+
+function rollChest() {
+  const tiers = GAMES.chest.tiers;
+  const total = tiers.reduce((s, t) => s + t[3], 0);
+  let roll = Math.random() * total;
+  for (const [name, min, max, weight] of tiers) {
+    if (roll < weight) return { tier: name, reward: min + Math.floor(Math.random() * (max - min + 1)) };
     roll -= weight;
   }
-  const last = table[table.length - 1];
-  return last[0];
+  const last = tiers[tiers.length - 1];
+  return { tier: last[0], reward: last[1] };
 }
 
 export default async function handler(req, res) {
@@ -128,12 +149,14 @@ export default async function handler(req, res) {
         }
       }
 
-      const reward = rollReward(GAMES[gameKey].table);
+      const roll = gameKey === 'spin' ? rollSpin() : rollChest();
+      const reward = roll.reward;
+      const tier = roll.tier || null;
       await users.updateOne({ telegramId: tgId }, {
         $inc: { egBalance: reward, [`${path}.totalEarned`]: reward, [`${path}.totalPlays`]: 1 },
       });
 
-      return res.status(200).json({ success: true, source, reward, game: gameKey });
+      return res.status(200).json({ success: true, source, reward, tier, game: gameKey });
     }
 
     return res.status(400).json({ error: 'Invalid action. Use: status | play' });
@@ -141,4 +164,4 @@ export default async function handler(req, res) {
     console.error('minigame.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+    }
