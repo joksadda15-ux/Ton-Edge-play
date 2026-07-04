@@ -11,6 +11,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
+@keyframes chestShake{0%,100%{transform:rotate(0deg) scale(1)}20%{transform:rotate(-8deg) scale(1.05)}40%{transform:rotate(8deg) scale(1.05)}60%{transform:rotate(-6deg) scale(1.08)}80%{transform:rotate(6deg) scale(1.08)}}
+@keyframes popIn{0%{opacity:0;transform:scale(.3)}60%{opacity:1;transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes legendaryPulse{0%,100%{box-shadow:0 0 20px 6px rgba(251,191,36,.6)}50%{box-shadow:0 0 40px 14px rgba(251,191,36,.9)}}
+@keyframes spinFlash{0%{opacity:.9}100%{opacity:0}}
+.chest-shaking{animation:chestShake .5s ease-in-out 3}
+.chest-reveal-pop{animation:popIn .45s cubic-bezier(.17,.89,.32,1.28)}
+.tier-legendary{animation:legendaryPulse 1s ease-in-out infinite}
 :root{
   /* primary brand green — dominant hue across the whole app */
   --g1:#00ff87;--g2:#00c96e;--g3:#00954f;--g0:#7dffc0;
@@ -578,6 +585,13 @@ input,select,button{font-family:'Inter',sans-serif}
             <div style="font-size:11px;color:var(--muted)">1 free spin daily · then every 2h with an ad</div>
           </div>
         </div>
+
+        <div id="spin-wheel-wrap" style="position:relative;width:210px;height:210px;margin:6px auto 16px">
+          <div id="spin-wheel" style="width:100%;height:100%;border-radius:50%;position:relative;transition:transform 3.2s cubic-bezier(.15,.65,.1,1);border:4px solid rgba(255,255,255,.15);box-shadow:0 0 30px rgba(96,165,250,.3),inset 0 0 20px rgba(0,0,0,.3)"></div>
+          <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:18px solid #fff;z-index:5;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))"></div>
+          <div style="position:absolute;top:50%;left:50%;width:24px;height:24px;background:#111;border:3px solid #fff;border-radius:50%;transform:translate(-50%,-50%);z-index:5"></div>
+        </div>
+
         <div style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:10px" id="spin-status-txt">Loading...</div>
         <button id="spin-play-btn" onclick="playMiniGame('spin')" style="width:100%;background:linear-gradient(135deg,#60a5fa,#3b82f6,#2563eb);color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:16px;padding:15px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 6px 24px rgba(96,165,250,.35)">
           <i class="fa-solid fa-play"></i> <span id="spin-btn-txt">Loading...</span>
@@ -597,6 +611,12 @@ input,select,button{font-family:'Inter',sans-serif}
             <div style="font-size:11px;color:var(--muted)">1 free open daily · then every 2h with an ad</div>
           </div>
         </div>
+
+        <div id="chest-stage" style="position:relative;height:150px;display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+          <div id="chest-box" style="font-size:72px;filter:drop-shadow(0 6px 16px rgba(168,85,247,.4));transition:transform .15s">🎁</div>
+          <div id="chest-result" style="position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px"></div>
+        </div>
+
         <div style="font-size:11px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:10px" id="chest-status-txt">Loading...</div>
         <button id="chest-play-btn" onclick="playMiniGame('chest')" style="width:100%;background:linear-gradient(135deg,#a855f7,#9333ea,#7e22ce);color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:16px;padding:15px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 6px 24px rgba(168,85,247,.35)">
           <i class="fa-solid fa-gift"></i> <span id="chest-btn-txt">Loading...</span>
@@ -856,7 +876,7 @@ async function enterApp(){
 
   const ref=window.Telegram?.WebApp?.initDataUnsafe?.start_param||'';
   await registerOrLoad(ref);
-  renderMarket();loadTasks();loadRefData();checkMining();loadMiniGameStatus('spin');loadMiniGameStatus('chest');
+  renderMarket();loadTasks();loadRefData();checkMining();buildSpinWheel();loadMiniGameStatus('spin');loadMiniGameStatus('chest');
   setInterval(checkChannelPeriodic,3*60*1000);
 }
 
@@ -1420,20 +1440,93 @@ function renderMiniGameUI(gameKey,d){
   }
 }
 
+// Must contain the same 6 numbers as GAMES.spin.values on the server — order here
+// only controls the visual layout, not the odds (odds live server-side only).
+const SPIN_SEGMENTS=[
+  {v:5,c:'#f43f5e'},{v:8,c:'#f59e0b'},{v:12,c:'#22c55e'},
+  {v:15,c:'#3b82f6'},{v:20,c:'#a855f7'},{v:25,c:'#ec4899'}
+];
+let spinWheelRotation=0;
+
+function buildSpinWheel(){
+  const wheel=qs('#spin-wheel');
+  if(!wheel||wheel.dataset.built)return;
+  wheel.dataset.built='1';
+  const n=SPIN_SEGMENTS.length,slice=360/n;
+  const stops=SPIN_SEGMENTS.map((s,i)=>`${s.c} ${i*slice}deg ${(i+1)*slice}deg`).join(',');
+  wheel.style.background=`conic-gradient(${stops})`;
+  SPIN_SEGMENTS.forEach((s,i)=>{
+    const mid=i*slice+slice/2;
+    const label=document.createElement('div');
+    label.textContent=s.v+' EG';
+    label.style.cssText=`position:absolute;top:50%;left:50%;width:0;height:0;transform:rotate(${mid}deg) translate(0,-72px) rotate(${-mid}deg) translate(-50%,-50%);font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);white-space:nowrap`;
+    wheel.appendChild(label);
+  });
+}
+
+async function spinWheelTo(rewardValue){
+  return new Promise(resolve=>{
+    const wheel=qs('#spin-wheel');
+    const idx=SPIN_SEGMENTS.findIndex(s=>s.v===rewardValue);
+    const slice=360/SPIN_SEGMENTS.length;
+    const targetMid=idx*slice+slice/2;
+    const currentMod=((spinWheelRotation%360)+360)%360;
+    const delta=(360-targetMid-currentMod+360)%360;
+    spinWheelRotation+=5*360+delta;
+    wheel.style.transform=`rotate(${spinWheelRotation}deg)`;
+    setTimeout(resolve,3300);
+  });
+}
+
+const CHEST_TIER_STYLE={
+  Silver:{emoji:'🥈',color:'#cbd5e1',label:'Silver Box'},
+  Gold:{emoji:'🥇',color:'#fbbf24',label:'Gold Box'},
+  Epic:{emoji:'💜',color:'#a855f7',label:'Epic Box'},
+  Legendary:{emoji:'👑',color:'#facc15',label:'LEGENDARY BOX'},
+};
+
+async function openChestAnimation(tier,reward){
+  const box=qs('#chest-box'),result=qs('#chest-result');
+  box.classList.add('chest-shaking');
+  await new Promise(r=>setTimeout(r,1500));
+  box.classList.remove('chest-shaking');
+  box.style.display='none';
+  const style=CHEST_TIER_STYLE[tier]||CHEST_TIER_STYLE.Silver;
+  result.style.display='flex';
+  result.className='chest-reveal-pop'+(tier==='Legendary'?' tier-legendary':'');
+  result.innerHTML=`
+    <div style="font-size:56px">${style.emoji}</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:13px;letter-spacing:1px;color:${style.color}">${style.label}</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:24px;color:#f59e0b">+${reward} EG</div>`;
+  await new Promise(r=>setTimeout(r,2200));
+  result.style.display='none';
+  box.style.display='block';
+}
+
 async function playMiniGame(gameKey){
   const d=miniGameStatus[gameKey];
   if(!d||!d.canPlay){toast('error','No play available yet. Wait for the timer or your free daily play.');return;}
 
+  const playBtn=qs(`#${gameKey}-play-btn`);
+  if(playBtn)playBtn.disabled=true;
+
   // Ad required unless today's free play is still available
   if(d.requiresAd){
     try{await showAdForReward('gigapub',`${d.label} Ad`);}
-    catch{try{await showAdForReward('monetag',`${d.label} Ad`);}catch{toast('error','Ad failed to load');return;}}
+    catch{
+      try{await showAdForReward('monetag',`${d.label} Ad`);}
+      catch{toast('error','Ad failed to load');if(playBtn)playBtn.disabled=false;return;}
+    }
   }
 
   try{
     const r=await fetch(`${API}/miniapp`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'play',game:gameKey})});
     const res=await r.json();
-    if(!res.success){toast('error',res.error||'Could not play');await loadMiniGameStatus(gameKey);return;}
+    if(!res.success){toast('error',res.error||'Could not play');await loadMiniGameStatus(gameKey);if(playBtn)playBtn.disabled=false;return;}
+
+    if(gameKey==='spin')await spinWheelTo(res.reward);
+    else await openChestAnimation(res.tier,res.reward);
+
     toast('success',`${gameKey==='spin'?'🎡':'🎁'} +${res.reward} EG!`);
     await refreshUser();
     await loadMiniGameStatus(gameKey);
@@ -1441,6 +1534,7 @@ async function playMiniGame(gameKey){
     if(totalEl)totalEl.textContent=(parseInt(totalEl.textContent)||0)+1;
     if(earnedEl)earnedEl.textContent=`${(parseFloat(earnedEl.textContent)||0)+res.reward} EG`;
   }catch{toast('error','Network error');}
+  if(playBtn)playBtn.disabled=false;
 }
 
 function toast(icon,title){
