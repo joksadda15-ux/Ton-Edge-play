@@ -4,17 +4,26 @@ import { verifyTelegramInit } from '../lib/auth.js';
 const BOT_LINK = 'http://t.me/TonEdge_play_bot/playearn';
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
-async function isChannelMember(userId, channelLink) {
-  // Only works for 'api' type tasks whose link points to a t.me channel.
-  const m = String(channelLink || '').match(/t\.me\/([A-Za-z0-9_]+)/);
-  if (!m) return null; // not a checkable channel link — caller decides what to do
-  const chatId = '@' + m[1];
+// Only these two are ever real-verified — must match bot.js's CHANNEL/COMMUNITY.
+const OFFICIAL_TARGETS = {
+  channel: '@ton_edge_play',
+  group: '@ton_edge_community',
+};
+
+// Returns true / false for a definite result, or null if verification
+// couldn't be performed (network/API error) — null is NOT treated as
+// "not a member", so a transient Telegram API hiccup doesn't wrongly
+// block someone who actually joined.
+async function checkOfficialMembership(userId, target) {
+  const chatId = OFFICIAL_TARGETS[target];
+  if (!chatId) return null;
   try {
     const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${encodeURIComponent(chatId)}&user_id=${userId}`);
     const d = await r.json();
+    if (!d.ok) return null; // API-level error (bad token, bot not admin, etc.) — don't block on this
     return ['member', 'administrator', 'creator'].includes(d.result?.status);
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -82,16 +91,18 @@ export default async function handler(req, res) {
       const task = await tasksCol.findOne({ id: taskId, active: true });
       if (!task) return res.status(404).json({ error: 'Task not found' });
 
-      // 'api' tasks (e.g. "join our channel") must be verified against
-      // Telegram itself before crediting — previously this was never
-      // checked, so the reward could be claimed without joining anything.
-      if (task.type === 'api') {
-        const memberStatus = await isChannelMember(telegramId, task.link);
+      // Only tasks pointing at OUR OWN official channel/group get real
+      // verification. Telegram/YouTube/Facebook tasks for arbitrary
+      // third-party links have no API to check against — those are
+      // trust-based by necessity (task.officialTarget will be unset for them).
+      if (task.type === 'api' && task.officialTarget) {
+        const memberStatus = await checkOfficialMembership(telegramId, task.officialTarget);
         if (memberStatus === false) {
           return res.status(400).json({ error: 'Join the channel first, then try again.' });
         }
-        // memberStatus === null means the link isn't a checkable t.me channel —
-        // falls through and is treated like a 'none' task (trust-based).
+        // memberStatus === null → verification unavailable right now (API
+        // error, not the user's fault) — falls through and credits normally
+        // rather than falsely blocking a genuine member.
       }
 
       // Atomic claim: only succeeds if this task isn't already in
@@ -116,4 +127,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-                 }
+}
