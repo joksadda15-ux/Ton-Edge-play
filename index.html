@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Ton Edge Play</title>
 <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
 <script src='//libtl.com/sdk.js' data-zone='11192250' data-sdk='show_11192250'></script>
 <script src="https://ad.gigapub.tech/script?id=7070"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -745,8 +746,9 @@ const PLANS={
   6:{id:6,name:'Dragon Spirit', rarity:'Mythic',cost:5000,free:false,  yield:70000,img:'https://i.postimg.cc/ncL9SFj1/Generated-Image-June-21-2026-1-59PM.png',      ads:{monetag:{limit:6,reward:35},gigapub:{limit:6,reward:35}}},
 };
 // AdsGram: currently disabled (re-enable when approved)
-const ADSGRAM_ENABLED = false; // set true when AdsGram is re-approved
-const ADSGRAM_BLOCK = '36169';
+const ADSGRAM_ENABLED = true;
+const ADSGRAM_BLOCK = '37275';
+const ADSGRAM_INT_BLOCK = '37276'; // interstitial — shown once on 2nd app open, no reward
 const ADSGRAM_INT = 'int-36170';
 // Withdraw roadmap: per $0.1 USDT = 5 ads required
 const WD_ADS_PER_01_USDT = 5;
@@ -899,8 +901,18 @@ async function registerOrLoad(referCode){
     const r=await fetch(`${API}/user`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({telegramId:tgUser.id,username:tgUser.username||'',firstName:tgUser.first_name||'',referCode,initData})});
     const d=await r.json();
-    if(d.success){userData=d.user;updateUI();}
+    if(d.success){userData=d.user;updateUI();maybeShowInterstitial();}
   }catch(e){console.error(e);}
+}
+
+// Shows the AdsGram interstitial exactly once, on the user's 2nd app open.
+// No reward — this is a pure impression ad, server never involved in the outcome.
+function maybeShowInterstitial(){
+  if(userData?.appOpens!==2)return;
+  if(!(ADSGRAM_ENABLED&&window.Adsgram))return;
+  try{
+    window.Adsgram.init({blockId:ADSGRAM_INT_BLOCK}).show().catch(()=>{/* skipped or no fill — ignore */});
+  }catch{}
 }
 async function refreshUser(){
   try{
@@ -1092,7 +1104,7 @@ async function watchAd(network){
   if(!activeSheet)return;
   if(!(userData?.ownedSpirits?.[activeSheet]>0)){toast('error','Buy this spirit first');return;}
   curAdNet=network;
-  const names={adsgram:'⚡ AdsGram',monetag:'📺 Monetag',gigapub:'🌐 GigaPub'}; // adsgram locked
+  const names={adsgram:'⚡ AdsGram',monetag:'📺 Monetag',gigapub:'🌐 GigaPub'};
   const cols={adsgram:'var(--amber)',monetag:'var(--blue)',gigapub:'var(--g1)'};
   const b=qs('#ad-badge');
   b.textContent=names[network];b.style.background=cols[network]+'22';b.style.color=cols[network];b.style.border=`1px solid ${cols[network]}44`;
