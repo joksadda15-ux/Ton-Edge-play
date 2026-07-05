@@ -5,16 +5,20 @@ const DAILY_REWARD = 25;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { telegramId, initData, action, code } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-  if (initData) {
-    const tgUser = verifyTelegramInit(initData);
-    if (!tgUser || String(tgUser.id) !== String(telegramId)) {
-      return res.status(403).json({ error: 'Invalid Telegram session' });
-    }
+  // initData is now REQUIRED — was optional, meaning anyone could claim the
+  // daily reward or redeem a promo code for any telegramId with no proof of
+  // identity.
+  const tgUser = verifyTelegramInit(initData);
+  if (!tgUser || String(tgUser.id) !== String(telegramId)) {
+    return res.status(403).json({ error: 'Invalid Telegram session' });
   }
 
   try {
@@ -27,24 +31,40 @@ export default async function handler(req, res) {
     // ── action: daily ─────────────────────────────────────────────
     if (action === 'daily') {
       const now = new Date();
-      const last = user.dailyClaimLast ? new Date(user.dailyClaimLast) : null;
-      if (last && now - last < 24 * 60 * 60 * 1000) {
+      const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      // Atomic: only succeeds if dailyClaimLast is missing or older than the
+      // cutoff. Previously this was read-then-write, so two claims fired
+      // close together could both pass the time check before either wrote,
+      // double-crediting the daily reward.
+      const result = await users.findOneAndUpdate(
+        {
+          telegramId: String(telegramId),
+          $or: [
+            { dailyClaimLast: { $exists: false } },
+            { dailyClaimLast: null },
+            { dailyClaimLast: { $lte: cutoff } },
+          ],
+        },
+        { $inc: { egBalance: DAILY_REWARD }, $set: { dailyClaimLast: now } },
+        { returnDocument: 'after' }
+      );
+      const updated = result?.value || result;
+      if (!updated) {
+        const last = new Date(user.dailyClaimLast);
         const hours = Math.ceil(24 - (now - last) / 3600000);
         return res.status(400).json({ error: `Already claimed. Come back in ${hours} hours.` });
       }
-      await users.updateOne(
-        { telegramId: String(telegramId) },
-        { $inc: { egBalance: DAILY_REWARD }, $set: { dailyClaimLast: now } }
-      );
       return res.status(200).json({ success: true, reward: DAILY_REWARD });
     }
 
     // ── action: promo ─────────────────────────────────────────────
     if (action === 'promo') {
       if (!code) return res.status(400).json({ error: 'code required' });
+      const cleanCode = code.toUpperCase().trim();
       const { checkOnly } = req.body;
       const promos = db.collection('promos');
-      const promo = await promos.findOne({ code: code.toUpperCase().trim() });
+      const promo = await promos.findOne({ code: cleanCode });
 
       // Validate
       if (!promo) return res.status(200).json({ valid: false, error: 'Invalid promo code.' });
@@ -52,18 +72,35 @@ export default async function handler(req, res) {
         return res.status(200).json({ valid: false, error: 'Promo code expired.' });
       if (promo.maxUses && promo.usedCount >= promo.maxUses)
         return res.status(200).json({ valid: false, error: 'Promo code limit reached.' });
-      if ((user.promosUsed || []).includes(code.toUpperCase().trim()))
+      if ((user.promosUsed || []).includes(cleanCode))
         return res.status(200).json({ valid: false, error: 'Already used this promo code.' });
 
-      // checkOnly = just validate, don't redeem yet (before showing ad)
+      // checkOnly = just validate, don't redeem yet (before showing an ad).
+      // Note: nothing server-side actually enforces that an ad was shown
+      // between checkOnly and the real redeem call below — a user can call
+      // this endpoint directly with checkOnly:false and skip the ad
+      // entirely. Low stakes (small, capped, one-time-per-user reward) but
+      // flagging it: if the ad-watch is meant to be mandatory, it isn't.
       if (checkOnly) return res.status(200).json({ valid: true, reward: promo.reward });
 
-      // Redeem
-      await users.updateOne(
-        { telegramId: String(telegramId) },
-        { $inc: { egBalance: promo.reward }, $push: { promosUsed: code.toUpperCase().trim() } }
+      // Atomic redeem: only succeeds if this code isn't already in
+      // promosUsed. Previously read-then-write, so two simultaneous redeems
+      // of the same code by the same user could both succeed.
+      const result = await users.findOneAndUpdate(
+        { telegramId: String(telegramId), promosUsed: { $ne: cleanCode } },
+        { $inc: { egBalance: promo.reward }, $push: { promosUsed: cleanCode } },
+        { returnDocument: 'after' }
       );
-      await promos.updateOne({ code: code.toUpperCase().trim() }, { $inc: { usedCount: 1 } });
+      const updated = result?.value || result;
+      if (!updated) {
+        return res.status(200).json({ valid: false, error: 'Already used this promo code.' });
+      }
+
+      // Still not perfectly race-proof against maxUses across DIFFERENT
+      // users hitting the last slot at the same instant (this $inc isn't
+      // conditioned on usedCount < maxUses), but that only risks a handful
+      // of extra redemptions on a capped code, not unlimited balance growth.
+      await promos.updateOne({ code: cleanCode }, { $inc: { usedCount: 1 } });
 
       return res.status(200).json({ success: true, reward: promo.reward });
     }
@@ -73,4 +110,4 @@ export default async function handler(req, res) {
     console.error('daily.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-          }
+}
