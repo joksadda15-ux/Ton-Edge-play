@@ -70,7 +70,7 @@ export default async function handler(req, res) {
           totalReferred: user.totalReferred || 0,
           totalRefEarned: user.totalRefEarned || 0,
           referredUsers,
-          rewards: { onJoin: 40, onPlanBuy: 80, on20Ads: 120 },
+          rewards: { onJoin: 30, on10Tasks: 80, onPlanBuy: 120 },
         });
       }
 
@@ -119,6 +119,30 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Task already completed.' });
       }
 
+      // Referral milestone: when a referred user hits exactly 10 completed
+      // tasks, their referrer gets 80 EG — matches the Refer tab's
+      // advertised "get 80 EG when they complete 10 tasks". This never
+      // existed before; guarded by referral10Paid so it can only fire once
+      // even if task counts fluctuate later (e.g. an admin removing/adding
+      // tasks changes completedTasks length again).
+      if (
+        updated.completedTasks?.length === 10 &&
+        updated.referredBy &&
+        !updated.referral10Paid
+      ) {
+        const flagged = await users.findOneAndUpdate(
+          { telegramId: String(telegramId), referral10Paid: { $ne: true } },
+          { $set: { referral10Paid: true } },
+          { returnDocument: 'after' }
+        );
+        if (flagged?.value || flagged) {
+          await users.updateOne(
+            { telegramId: updated.referredBy },
+            { $inc: { egBalance: 80, totalRefEarned: 80 } }
+          );
+        }
+      }
+
       return res.status(200).json({ success: true, reward: task.reward });
     }
 
@@ -127,4 +151,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+    }
