@@ -748,8 +748,7 @@ const PLANS={
 // AdsGram: currently disabled (re-enable when approved)
 const ADSGRAM_ENABLED = true;
 const ADSGRAM_BLOCK = '37275';
-const ADSGRAM_INT_BLOCK = '37276'; // interstitial — shown once on 2nd app open, no reward
-const ADSGRAM_INT = 'int-36170';
+const ADSGRAM_INT = 'int-37276';
 // Withdraw roadmap: per $0.1 USDT = 5 ads required
 const WD_ADS_PER_01_USDT = 5;
 const EG_PER_01_USDT = 2000; // 20000 EG = $1, so 2000 EG = $0.1
@@ -901,18 +900,8 @@ async function registerOrLoad(referCode){
     const r=await fetch(`${API}/user`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({telegramId:tgUser.id,username:tgUser.username||'',firstName:tgUser.first_name||'',referCode,initData})});
     const d=await r.json();
-    if(d.success){userData=d.user;updateUI();maybeShowInterstitial();}
+    if(d.success){userData=d.user;updateUI();}
   }catch(e){console.error(e);}
-}
-
-// Shows the AdsGram interstitial exactly once, on the user's 2nd app open.
-// No reward — this is a pure impression ad, server never involved in the outcome.
-function maybeShowInterstitial(){
-  if(userData?.appOpens!==2)return;
-  if(!(ADSGRAM_ENABLED&&window.Adsgram))return;
-  try{
-    window.Adsgram.init({blockId:ADSGRAM_INT_BLOCK}).show().catch(()=>{/* skipped or no fill — ignore */});
-  }catch{}
 }
 async function refreshUser(){
   try{
@@ -1249,13 +1238,16 @@ async function redeemPromo(){
     const checkData=await checkRes.json();
     if(!checkData.valid){toast('error',checkData.error||'Invalid or expired code');return;}
 
-    // Code is valid — show ad first
-    try{
-      await showAdForReward('gigapub','Promo Reward Ad');
-    } catch {
-      try { await showAdForReward('monetag','Promo Reward Ad'); }
-      catch { /* both failed — still give reward */ }
+    // Code is valid — an ad MUST actually show before redeeming.
+    // Previously, if every network failed to load, the code fell through
+    // and gave the reward anyway — the "watch ad first" rule was not
+    // actually enforced. Now: if nothing shows, we stop and let the
+    // person retry, we don't silently pay out.
+    let adShown=false;
+    for(const net of ['adsgram','gigapub','monetag']){
+      try{await showAdForReward(net,'Promo Reward Ad');adShown=true;break;}catch{}
     }
+    if(!adShown){toast('error','No ad available right now — try again in a moment.');return;}
 
     // Now claim the reward
     const r=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},
@@ -1271,25 +1263,44 @@ async function loadTasks(){
   try{
     const r=await fetch(`${API}/tasks?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
     const d=await r.json();if(!d.success)return;
-    const ico={telegram:'fa-brands fa-telegram',api:'fa-brands fa-telegram',youtube:'fa-brands fa-youtube',social:'fa-brands fa-twitter',share:'fa-solid fa-share-nodes'};
-    const col={telegram:'rgba(0,255,135,.1)',api:'rgba(0,255,135,.1)',youtube:'rgba(239,68,68,.1)',social:'rgba(96,165,250,.1)',share:'rgba(0,200,100,.1)'};
-    const ic={telegram:'var(--g1)',api:'var(--g1)',youtube:'#ef4444',social:'var(--blue)',share:'var(--g2)'};
+    const ico={telegram:'fa-brands fa-telegram',api:'fa-brands fa-telegram',youtube:'fa-brands fa-youtube',facebook:'fa-brands fa-facebook',social:'fa-brands fa-twitter',share:'fa-solid fa-share-nodes'};
+    const col={telegram:'rgba(0,255,135,.1)',api:'rgba(0,255,135,.1)',youtube:'rgba(239,68,68,.1)',facebook:'rgba(59,89,152,.1)',social:'rgba(96,165,250,.1)',share:'rgba(0,200,100,.1)'};
+    const ic={telegram:'var(--g1)',api:'var(--g1)',youtube:'#ef4444',facebook:'#3b5998',social:'var(--blue)',share:'var(--g2)'};
     const list=qs('#tasks-list');
     if(!d.tasks.length){list.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--muted);font-size:13px">No tasks available yet</div>';return;}
-    list.innerHTML=d.tasks.map(t=>`<div class="task-item${t.completed?' done':''}"><div class="task-ico" style="background:${col[t.type]||'rgba(0,255,135,.08)'}"><i class="${ico[t.type]||'fa-solid fa-star'}" style="color:${ic[t.type]||'var(--g1)'}"></i></div><div class="task-text"><div class="task-name">${t.title}</div><div class="task-rew">+${t.reward} EG</div></div>${t.completed?'<span class="task-done">✓ Done</span>':`<button class="task-start g3d" id="tb-${t.id}" onclick="doTask('${t.id}','${t.link||''}')">Start</button>`}</div>`).join('');
+    list.innerHTML=d.tasks.map(t=>`<div class="task-item${t.completed?' done':''}"><div class="task-ico" style="background:${col[t.type]||'rgba(0,255,135,.08)'}"><i class="${ico[t.type]||'fa-solid fa-star'}" style="color:${ic[t.type]||'var(--g1)'}"></i></div><div class="task-text"><div class="task-name">${t.title}</div><div class="task-rew">+${t.reward} EG</div></div>${t.completed?'<span class="task-done">✓ Done</span>':`<button class="task-start g3d" id="tb-${t.id}" onclick="startTask('${t.id}','${t.link||''}')">Start</button>`}</div>`).join('');
   }catch{}
 }
-async function doTask(id,link){
-  const btn=qs(`#tb-${id}`);if(btn){btn.textContent='Checking...';btn.disabled=true;}
+const TASK_MIN_DWELL_MS=8000; // soft nudge only, not real verification — see note below
+const taskStartedAt={};
+
+// Step 1: open the task link, flip the button to "Confirm". No claim call yet.
+function startTask(id,link){
+  const btn=qs(`#tb-${id}`);
   if(link){if(window.Telegram?.WebApp)window.Telegram.WebApp.openTelegramLink(link);else window.open(link,'_blank');}
-  setTimeout(async()=>{
-    try{
-      const r=await fetch(`${API}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,taskId:id})});
-      const d=await r.json();
-      if(d.success){toast('success',`+${d.reward} EG!`);await refreshUser();loadTasks();}
-      else if(btn){btn.textContent='Start';btn.disabled=false;toast('error',d.error||'Task failed');}
-    }catch{if(btn){btn.textContent='Start';btn.disabled=false;}}
-  },3000);
+  taskStartedAt[id]=Date.now();
+  if(btn){btn.textContent='Confirm';btn.onclick=()=>confirmTask(id);}
+}
+
+// Step 2: user taps Confirm after actually returning. A minimum dwell time
+// is enforced client-side as a soft nudge (stops the instant-tap case) —
+// this is NOT real verification, someone can still bypass it. For task
+// type 'api' (our own official channel/group), the server independently
+// checks real Telegram membership regardless of this timer.
+async function confirmTask(id){
+  const btn=qs(`#tb-${id}`);
+  const elapsed=Date.now()-(taskStartedAt[id]||0);
+  if(elapsed<TASK_MIN_DWELL_MS){
+    toast('error','Complete the task first, then confirm.');
+    return;
+  }
+  if(btn){btn.textContent='Checking...';btn.disabled=true;}
+  try{
+    const r=await fetch(`${API}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,taskId:id})});
+    const d=await r.json();
+    if(d.success){toast('success',`+${d.reward} EG!`);await refreshUser();loadTasks();}
+    else if(btn){btn.textContent='Confirm';btn.disabled=false;btn.onclick=()=>confirmTask(id);toast('error',d.error||'Task not completed yet — try again.');}
+  }catch{if(btn){btn.textContent='Confirm';btn.disabled=false;btn.onclick=()=>confirmTask(id);}}
 }
 
 // ── REFER ────────────────────────────────────────────────────
