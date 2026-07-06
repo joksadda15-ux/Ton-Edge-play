@@ -15,12 +15,12 @@ export default async function handler(req, res) {
       const { telegramId, initData } = req.query;
       if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-      // Verify real Telegram user
-      if (initData) {
-        const tgUser = verifyTelegramInit(initData);
-        if (!tgUser || String(tgUser.id) !== String(telegramId)) {
-          return res.status(403).json({ error: 'Invalid Telegram session' });
-        }
+      // initData is now REQUIRED — previously this block was skipped entirely
+      // when initData was missing, letting anyone read any user's data by
+      // guessing a telegramId.
+      const tgUser = verifyTelegramInit(initData);
+      if (!tgUser || String(tgUser.id) !== String(telegramId)) {
+        return res.status(403).json({ error: 'Invalid Telegram session' });
       }
 
       const user = await users.findOne(
@@ -31,26 +31,35 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, user });
     }
 
-    // ── POST /api/user  (register) ────────────────────────────────
+    // ── POST /api/user  (register / app-open heartbeat) ───────────
     if (req.method === 'POST') {
       const { telegramId, username, firstName, referCode, initData } = req.body;
 
       if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-      // Verify real Telegram user
-      if (initData) {
-        const tgUser = verifyTelegramInit(initData);
-        if (!tgUser || String(tgUser.id) !== String(telegramId)) {
-          return res.status(403).json({ error: 'Invalid Telegram session' });
-        }
+      // initData is now REQUIRED. Previously, omitting it let anyone POST an
+      // arbitrary telegramId + someone else's referCode to farm the 40 EG
+      // referral bonus with fake/unverified telegramIds in a loop — no real
+      // Telegram account needed. This closes that.
+      const tgUser = verifyTelegramInit(initData);
+      if (!tgUser || String(tgUser.id) !== String(telegramId)) {
+        return res.status(403).json({ error: 'Invalid Telegram session' });
       }
 
       const tgId = String(telegramId);
       const existing = await users.findOne({ telegramId: tgId });
+
       if (existing) {
-        // Update last active
-        await users.updateOne({ telegramId: tgId }, { $set: { lastActive: new Date() } });
-        return res.status(200).json({ success: true, user: existing, isNew: false });
+        // Existing user opening the app again — bump the open counter.
+        // appOpens is used client-side to trigger the AdsGram interstitial
+        // exactly once, on the 2nd open. No reward is tied to this value.
+        const updated = await users.findOneAndUpdate(
+          { telegramId: tgId },
+          { $set: { lastActive: new Date() }, $inc: { appOpens: 1 } },
+          { returnDocument: 'after' }
+        );
+        const userDoc = updated?.value || updated;
+        return res.status(200).json({ success: true, user: userDoc, isNew: false });
       }
 
       const myReferCode =
@@ -72,18 +81,21 @@ export default async function handler(req, res) {
         completedTasks: [],
         promosUsed: [],
         isBanned: false,
+        appOpens: 1,
+        withdrawPending: false,
         createdAt: new Date(),
         lastActive: new Date(),
       };
 
-      // Handle referral — give referrer 40 EG on join
+      // Handle referral — give referrer 30 EG on join (matches the Refer
+      // tab's advertised "+30 EG per referral")
       if (referCode) {
         const referrer = await users.findOne({ referCode });
         if (referrer && referrer.telegramId !== tgId) {
           newUser.referredBy = referrer.telegramId;
           await users.updateOne(
             { telegramId: referrer.telegramId },
-            { $inc: { egBalance: 40, totalRefEarned: 40, totalReferred: 1 } }
+            { $inc: { egBalance: 30, totalRefEarned: 30, totalReferred: 1 } }
           );
         }
       }
@@ -97,4 +109,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-          }
+            }
