@@ -1,5 +1,6 @@
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
+import { bdTodayKey } from '../lib/dateUtils.js';
 
 const PLANS = {
   1: { name:'Bird Spirit',    cost:0,     free:true,  yield:800,   miningHours:4,  ads:{ adsgram:{limit:1,reward:20}, monetag:{limit:1,reward:20}, gigapub:{limit:1,reward:20} } },
@@ -10,21 +11,22 @@ const PLANS = {
   6: { name:'Dragon Spirit',  cost:5000,  yield:70000, miningHours:24, ads:{ adsgram:{limit:5,reward:60}, monetag:{limit:6,reward:35}, gigapub:{limit:6,reward:35} } },
 };
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10); // "2026-06-23"
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { telegramId, initData, action, planId, network } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-  if (initData) {
-    const tgUser = verifyTelegramInit(initData);
-    if (!tgUser || String(tgUser.id) !== String(telegramId))
-      return res.status(403).json({ error: 'Invalid Telegram session' });
+  // initData is now REQUIRED — previously optional (`if (initData) {...}`),
+  // which let anyone buy/claim spirits, ad rewards, or mining payouts for
+  // ANY telegramId with no proof of identity.
+  const tgUser = verifyTelegramInit(initData);
+  if (!tgUser || String(tgUser.id) !== String(telegramId)) {
+    return res.status(403).json({ error: 'Invalid Telegram session' });
   }
 
   const tgId = String(telegramId);
@@ -41,24 +43,38 @@ export default async function handler(req, res) {
       const plan = PLANS[planId];
       if (!plan) return res.status(400).json({ error: 'Invalid plan' });
 
-      const alreadyOwned = user.ownedSpirits?.[planId] > 0;
-
       if (plan.free) {
-        // Free plan — can only claim once
-        if (alreadyOwned) return res.status(400).json({ error: 'Already claimed free spirit' });
-        await users.updateOne(
-          { telegramId: tgId },
-          { $set: { [`ownedSpirits.${planId}`]: 1 } }
+        // Atomic claim: only succeeds if this spirit isn't already owned.
+        // Previously a plain read-then-write — two simultaneous claims
+        // could both pass the "not owned" check before either wrote.
+        const result = await users.findOneAndUpdate(
+          {
+            telegramId: tgId,
+            $or: [
+              { [`ownedSpirits.${planId}`]: { $exists: false } },
+              { [`ownedSpirits.${planId}`]: { $lte: 0 } },
+            ],
+          },
+          { $set: { [`ownedSpirits.${planId}`]: 1 } },
+          { returnDocument: 'after' }
         );
+        const updated = result?.value || result;
+        if (!updated) return res.status(400).json({ error: 'Already claimed free spirit' });
         return res.status(200).json({ success: true, plan, free: true });
       }
 
-      // Paid plan — permanent (can buy multiple times to increase owned count)
-      if (user.egBalance < plan.cost) return res.status(400).json({ error: 'Insufficient balance' });
-      await users.updateOne(
-        { telegramId: tgId },
-        { $inc: { egBalance: -plan.cost, [`ownedSpirits.${planId}`]: 1 } }
+      // Atomic purchase: only succeeds if balance is still >= cost at the
+      // moment of the update. Previously a separate balance check then a
+      // separate $inc — two buy requests fired together could both pass
+      // the balance check before either deduction landed, letting a user
+      // buy more spirits than their balance allowed.
+      const result = await users.findOneAndUpdate(
+        { telegramId: tgId, egBalance: { $gte: plan.cost } },
+        { $inc: { egBalance: -plan.cost, [`ownedSpirits.${planId}`]: 1 } },
+        { returnDocument: 'after' }
       );
+      const updated = result?.value || result;
+      if (!updated) return res.status(400).json({ error: 'Insufficient balance' });
 
       // Give referrer 120 EG for spirit purchase
       if (user.referredBy) {
@@ -84,29 +100,37 @@ export default async function handler(req, res) {
       const networkCfg = plan.ads[network];
       if (!networkCfg) return res.status(400).json({ error: 'Invalid network' });
 
-      const today = todayKey();
-      const todayAds = user.todayAds?.[today]?.[planId]?.[network] || 0;
-
-      if (todayAds >= networkCfg.limit) {
-        return res.status(400).json({ error: `Daily limit reached for ${network}` });
-      }
-
+      const today = bdTodayKey();
+      const path = `todayAds.${today}.${planId}.${network}`;
       const reward = networkCfg.reward;
-      const newCount = todayAds + 1;
 
-      await users.updateOne(
-        { telegramId: tgId },
+      // Atomic: only succeeds if today's count for this plan+network is
+      // still under the limit at the moment of the update. Previously a
+      // separate read-then-write, so several requests fired together could
+      // all pass the limit check before any of them wrote, letting a user
+      // exceed the daily ad-reward limit.
+      const result = await users.findOneAndUpdate(
+        {
+          telegramId: tgId,
+          $or: [
+            { [path]: { $exists: false } },
+            { [path]: { $lt: networkCfg.limit } },
+          ],
+        },
         {
           $inc: {
             egBalance: reward,
             totalAdsWatched: 1,
-            [`todayAds.${today}.${planId}.${network}`]: 1,
+            [path]: 1,
           },
-        }
+        },
+        { returnDocument: 'after' }
       );
-
-      // Refer reward: referrer gets 80 EG when referred user completes 10 tasks
-      // (tracked separately in tasks.js)
+      const updated = result?.value || result;
+      if (!updated) {
+        return res.status(400).json({ error: `Daily limit reached for ${network}` });
+      }
+      const newCount = updated.todayAds?.[today]?.[planId]?.[network] || 0;
 
       return res.status(200).json({
         success: true,
@@ -124,10 +148,19 @@ export default async function handler(req, res) {
         const remaining = Math.ceil((new Date(user.miningFinishTime) - Date.now()) / 60000);
         return res.status(400).json({ error: `Mining not done. ${remaining} minutes left.` });
       }
-      await users.updateOne(
-        { telegramId: tgId },
-        { $inc: { egBalance: plan.yield }, $set: { activePlan: null, miningFinishTime: null } }
+
+      // Atomic: only succeeds if activePlan is still 'mining' at the moment
+      // of the update. Previously a separate check-then-write, so two
+      // simultaneous claim calls could both pass the status check before
+      // either cleared it, double-crediting the mining reward.
+      const result = await users.findOneAndUpdate(
+        { telegramId: tgId, 'activePlan.status': 'mining' },
+        { $inc: { egBalance: plan.yield }, $set: { activePlan: null, miningFinishTime: null } },
+        { returnDocument: 'after' }
       );
+      const updated = result?.value || result;
+      if (!updated) return res.status(400).json({ error: 'No active mining' });
+
       return res.status(200).json({ success: true, reward: plan.yield });
     }
 
@@ -136,4 +169,4 @@ export default async function handler(req, res) {
     console.error('mining.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+    }
