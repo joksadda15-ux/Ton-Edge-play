@@ -1,8 +1,33 @@
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
+import { bdTodayKey } from '../lib/dateUtils.js';
 
 const MIN_WITHDRAW_EG = 10000;
 const EG_TO_USDT = 0.001 / 20;
+
+// ── Withdraw gate requirements ──────────────────────────────────
+const MIN_TASKS_COMPLETED = 5;
+const MIN_PAID_SPIRITS = 1;
+const MIN_ADS_TODAY = 6;
+
+function countAdsToday(user) {
+  const dayData = user.todayAds?.[bdTodayKey()];
+  if (!dayData) return 0;
+  let total = 0;
+  for (const planId in dayData) {
+    const networks = dayData[planId] || {};
+    for (const net in networks) total += networks[net] || 0;
+  }
+  return total;
+}
+
+// Counts spirits actually PAID for — plan '1' (Bird Spirit) is free and
+// given to every user automatically, so claiming it doesn't count toward
+// "bought a spirit" for the withdraw gate.
+function countPaidSpirits(user) {
+  const owned = user.ownedSpirits || {};
+  return Object.entries(owned).filter(([planId, count]) => String(planId) !== '1' && count > 0).length;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
@@ -51,6 +76,30 @@ export default async function handler(req, res) {
     const user = await users.findOne({ telegramId: String(telegramId) });
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
+
+    // ── Withdraw gate ──────────────────────────────────────────
+    const tasksCompleted = (user.completedTasks || []).length;
+    const paidSpirits = countPaidSpirits(user);
+    const adsToday = countAdsToday(user);
+
+    const missing = [];
+    if (tasksCompleted < MIN_TASKS_COMPLETED)
+      missing.push(`complete ${MIN_TASKS_COMPLETED - tasksCompleted} more task(s)`);
+    if (paidSpirits < MIN_PAID_SPIRITS)
+      missing.push(`buy at least ${MIN_PAID_SPIRITS} spirit`);
+    if (adsToday < MIN_ADS_TODAY)
+      missing.push(`watch ${MIN_ADS_TODAY - adsToday} more ad(s) today`);
+
+    if (missing.length > 0) {
+      return res.status(400).json({
+        error: `Withdraw requirements not met: ${missing.join(', ')}.`,
+        requirements: {
+          tasksCompleted, tasksRequired: MIN_TASKS_COMPLETED,
+          paidSpirits, spiritsRequired: MIN_PAID_SPIRITS,
+          adsToday, adsRequired: MIN_ADS_TODAY,
+        },
+      });
+    }
 
     const pending = await withdrawals.findOne({ telegramId: String(telegramId), status: 'pending' });
     if (pending) return res.status(400).json({ error: 'You already have a pending withdrawal.' });
