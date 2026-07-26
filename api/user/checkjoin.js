@@ -1,3 +1,5 @@
+import { verifyTelegramInit } from '../../lib/auth.js';
+
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL = '@ton_edge_play';
 const COMMUNITY = '@ton_edge_community';
@@ -19,10 +21,21 @@ async function checkMembership(userId, chatUsername) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const telegramId = req.query.telegramId || req.body?.telegramId;
+  const initData = req.query.initData || req.body?.initData || '';
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+
+  // initData is now REQUIRED — previously anyone could query any telegramId's
+  // channel/community join status with no proof of identity (info leak).
+  const tgUser = verifyTelegramInit(initData);
+  if (!tgUser || String(tgUser.id) !== String(telegramId)) {
+    return res.status(403).json({ error: 'Invalid Telegram session' });
+  }
 
   try {
     // Check both channels in parallel
@@ -35,7 +48,6 @@ export default async function handler(req, res) {
       joined: channel && community,
       channel,
       community,
-      // Debug info
       telegramId: String(telegramId),
       checkedAt: new Date().toISOString(),
     });
