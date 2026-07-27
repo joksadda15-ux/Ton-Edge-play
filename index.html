@@ -831,7 +831,7 @@ function markCh(id){
   // Wait 4s for user to actually join, then check
   setTimeout(async()=>{
     try{
-      const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+      const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
       if(!r.ok) throw new Error('API error');
       const d=await r.json();
       const joined=id==='ch1'?d.channel:d.community;
@@ -851,7 +851,7 @@ function markCh(id){
 
 async function verifyJoin(){
   try{
-    const res=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+    const res=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
     const data=await res.json();
     if(data.joined){
       localStorage.setItem('tep_ob_'+tgUser.id,'1');
@@ -883,7 +883,7 @@ async function enterApp(){
 
 async function checkChannelPeriodic(){
   try{
-    const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+    const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
     const d=await r.json();
     if(!d.joined){
       document.getElementById('app').style.display='none';
@@ -950,7 +950,7 @@ async function remindChannelIfNeeded(){
   if(Date.now()-lastCheck<5*60*1000)return;
   sessionStorage.setItem('ch_check',Date.now());
   try{
-    const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}`);
+    const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
     const d=await r.json();
     if(!d.joined){
       // Show reminder toast
