@@ -1,3 +1,5 @@
+// FILE PATH: api/tasks.js
+
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
@@ -70,7 +72,7 @@ export default async function handler(req, res) {
           totalReferred: user.totalReferred || 0,
           totalRefEarned: user.totalRefEarned || 0,
           referredUsers,
-          rewards: { onJoin: 30, on10Tasks: 80, onPlanBuy: 120 },
+          rewards: { onJoin: 600, on10Tasks: 1600 },
         });
       }
 
@@ -111,7 +113,7 @@ export default async function handler(req, res) {
       // and double-credit the reward.
       const result = await users.findOneAndUpdate(
         { telegramId: String(telegramId), completedTasks: { $ne: taskId } },
-        { $inc: { egBalance: task.reward }, $push: { completedTasks: taskId } },
+        { $inc: { goldBalance: task.reward }, $push: { completedTasks: taskId } },
         { returnDocument: 'after' }
       );
       const updated = result?.value || result;
@@ -138,7 +140,7 @@ export default async function handler(req, res) {
         if (flagged?.value || flagged) {
           await users.updateOne(
             { telegramId: updated.referredBy },
-            { $inc: { egBalance: 80, totalRefEarned: 80 } }
+            { $inc: { goldBalance: 1600, totalRefEarned: 1600 } }
           );
         }
       }
@@ -151,4 +153,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-    }
+}
