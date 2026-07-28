@@ -1,32 +1,24 @@
+// FILE PATH: api/withdraw.js
+
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
 
-const MIN_WITHDRAW_EG = 10000;
-const EG_TO_USDT = 0.001 / 20;
+// 50,000 EG = $1 (1,000,000 Gold = 50,000 EG)
+const MIN_WITHDRAW_EG = 5000; // ≈ $0.10
+const EG_TO_USDT = 1 / 50000;
 
 // ── Withdraw gate requirements ──────────────────────────────────
 const MIN_TASKS_COMPLETED = 5;
-const MIN_PAID_SPIRITS = 1;
+const MIN_TREE_HARVESTS = 1;
 const MIN_ADS_TODAY = 6;
 
 function countAdsToday(user) {
-  const dayData = user.todayAds?.[bdTodayKey()];
+  const dayData = user.adTasks?.[bdTodayKey()];
   if (!dayData) return 0;
   let total = 0;
-  for (const planId in dayData) {
-    const networks = dayData[planId] || {};
-    for (const net in networks) total += networks[net] || 0;
-  }
+  for (const net in dayData) total += dayData[net] || 0;
   return total;
-}
-
-// Counts spirits actually PAID for — plan '1' (Bird Spirit) is free and
-// given to every user automatically, so claiming it doesn't count toward
-// "bought a spirit" for the withdraw gate.
-function countPaidSpirits(user) {
-  const owned = user.ownedSpirits || {};
-  return Object.entries(owned).filter(([planId, count]) => String(planId) !== '1' && count > 0).length;
 }
 
 export default async function handler(req, res) {
@@ -79,14 +71,14 @@ export default async function handler(req, res) {
 
     // ── Withdraw gate ──────────────────────────────────────────
     const tasksCompleted = (user.completedTasks || []).length;
-    const paidSpirits = countPaidSpirits(user);
+    const treeHarvests = user.tree?.totalHarvests || 0;
     const adsToday = countAdsToday(user);
 
     const missing = [];
     if (tasksCompleted < MIN_TASKS_COMPLETED)
       missing.push(`complete ${MIN_TASKS_COMPLETED - tasksCompleted} more task(s)`);
-    if (paidSpirits < MIN_PAID_SPIRITS)
-      missing.push(`buy at least ${MIN_PAID_SPIRITS} spirit`);
+    if (treeHarvests < MIN_TREE_HARVESTS)
+      missing.push(`harvest your fruit tree at least once`);
     if (adsToday < MIN_ADS_TODAY)
       missing.push(`watch ${MIN_ADS_TODAY - adsToday} more ad(s) today`);
 
@@ -95,7 +87,7 @@ export default async function handler(req, res) {
         error: `Withdraw requirements not met: ${missing.join(', ')}.`,
         requirements: {
           tasksCompleted, tasksRequired: MIN_TASKS_COMPLETED,
-          paidSpirits, spiritsRequired: MIN_PAID_SPIRITS,
+          treeHarvests, treeHarvestsRequired: MIN_TREE_HARVESTS,
           adsToday, adsRequired: MIN_ADS_TODAY,
         },
       });
