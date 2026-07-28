@@ -1,3 +1,5 @@
+// FILE PATH: api/user.js
+
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
@@ -69,14 +71,15 @@ export default async function handler(req, res) {
         telegramId: tgId,
         username: username || '',
         firstName: firstName || 'User',
+        goldBalance: 0,
         egBalance: 0,
         referCode: myReferCode,
         referredBy: null,
         totalReferred: 0,
         totalRefEarned: 0,
         dailyClaimLast: null,
-        activePlan: null,
-        miningFinishTime: null,
+        tree: { lastHarvest: null, totalHarvests: 0, totalGold: 0 },
+        adTasks: {},
         totalAdsWatched: 0,
         completedTasks: [],
         promosUsed: [],
@@ -87,15 +90,15 @@ export default async function handler(req, res) {
         lastActive: new Date(),
       };
 
-      // Handle referral — give referrer 30 EG on join (matches the Refer
-      // tab's advertised "+30 EG per referral")
+      // Handle referral — give referrer 600 Gold on join (matches the Refer
+      // tab's advertised bonus per referral)
       if (referCode) {
         const referrer = await users.findOne({ referCode });
         if (referrer && referrer.telegramId !== tgId) {
           newUser.referredBy = referrer.telegramId;
           await users.updateOne(
             { telegramId: referrer.telegramId },
-            { $inc: { egBalance: 30, totalRefEarned: 30, totalReferred: 1 } }
+            { $inc: { goldBalance: 600, totalRefEarned: 600, totalReferred: 1 } }
           );
         }
       }
@@ -109,4 +112,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-            }
+      }
