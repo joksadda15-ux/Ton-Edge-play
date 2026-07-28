@@ -1,26 +1,27 @@
+// FILE PATH: api/miniapp.js
+
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
-const FREE_WINDOW_MS = 24 * 3600000;   // 1 free play per rolling 24h, per game
-const COOLDOWN_MS = 2 * 3600000;       // otherwise 1 play per rolling 2h, per game
+const COOLDOWN_MS = 2 * 3600000; // 1 play every 2h, per game — ad required every time
 
 const GAMES = {
   spin: {
     label: 'Lucky Spin',
-    // Fixed 6 values. Must stay in sync with SPIN_SEGMENTS in index.html (client draws
-    // the wheel from its own copy of these numbers and looks up index by value, so the
-    // ORDER here doesn't have to match the client — only the SET of 6 numbers must match).
-    values: [5, 8, 12, 15, 20, 25],
-    weights: [100, 100, 100, 120, 120, 60], // sums to 600 → 16.67/16.67/16.67/20/20/10 %
+    // Fixed 6 Gold values. Must stay in sync with SPIN_SEGMENTS in index.html
+    // (client draws the wheel from its own copy of these numbers and looks up
+    // index by value — the SET of 6 numbers must match, order doesn't matter).
+    values: [50, 80, 120, 160, 220, 300],
+    weights: [130, 130, 120, 100, 80, 40], // sums to 600
   },
   chest: {
     label: 'Mystery Chest',
-    // [tierName, min, max, weight] — weights sum to 100
+    // [tierName, min, max, weight] — weights sum to 100 — Gold reward range 50-300
     tiers: [
-      ['Silver', 1, 8, 40],
-      ['Gold', 9, 20, 50],
-      ['Epic', 21, 28, 9],
-      ['Legendary', 30, 50, 1],
+      ['Silver', 50, 100, 40],
+      ['Gold', 101, 180, 42],
+      ['Epic', 181, 250, 15],
+      ['Legendary', 251, 300, 3],
     ],
   },
 };
@@ -78,14 +79,9 @@ export default async function handler(req, res) {
     if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
 
     const mg = (user.gameData?.miniGames?.[gameKey]) || {};
-    const freeLastUsed = mg.freeLastUsed ? new Date(mg.freeLastUsed) : null;
-    const lastPlayed    = mg.lastPlayed    ? new Date(mg.lastPlayed)    : null;
-
-    const freeAvailable = !freeLastUsed || (now - freeLastUsed) >= FREE_WINDOW_MS;
-    const cooldownDone  = !lastPlayed || (now - lastPlayed) >= COOLDOWN_MS;
-    const canPlay = freeAvailable || cooldownDone;
-    const nextFreeMs = freeAvailable ? 0 : Math.max(0, freeLastUsed.getTime() + FREE_WINDOW_MS - now.getTime());
-    const nextPlayMs = cooldownDone ? 0 : Math.max(0, lastPlayed.getTime() + COOLDOWN_MS - now.getTime());
+    const lastPlayed = mg.lastPlayed ? new Date(mg.lastPlayed) : null;
+    const canPlay = !lastPlayed || (now - lastPlayed) >= COOLDOWN_MS;
+    const nextPlayMs = canPlay ? 0 : Math.max(0, lastPlayed.getTime() + COOLDOWN_MS - now.getTime());
 
     // ═══════════════════════════════════════
     if (req.method === 'GET' || action === 'status') {
@@ -93,75 +89,52 @@ export default async function handler(req, res) {
         success: true,
         game: gameKey,
         label: GAMES[gameKey].label,
-        freeAvailable,
-        nextFreeMs,
         canPlay,
         nextPlayMs,
-        requiresAd: !freeAvailable, // client shows "watch ad" flow when this is true
+        requiresAd: true, // an ad is always required before every play
       });
     }
 
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     // ═══════════════════════════════════════
-    // play — atomic: either consumes today's free play, or the 2h cooldown slot.
+    // play — atomic: only succeeds if the 2h cooldown slot is free.
     // Reward is rolled server-side, never trusts the client for a score.
     // ═══════════════════════════════════════
     if (action === 'play') {
-      const freeCutoff = new Date(now.getTime() - FREE_WINDOW_MS);
       const path = `gameData.miniGames.${gameKey}`;
+      const cooldownCutoff = new Date(now.getTime() - COOLDOWN_MS);
 
-      // Try free play first
-      let result = await users.findOneAndUpdate(
+      const result = await users.findOneAndUpdate(
         {
           telegramId: tgId,
           $or: [
-            { [`${path}.freeLastUsed`]: { $exists: false } },
-            { [`${path}.freeLastUsed`]: null },
-            { [`${path}.freeLastUsed`]: { $lte: freeCutoff } },
+            { [`${path}.lastPlayed`]: { $exists: false } },
+            { [`${path}.lastPlayed`]: null },
+            { [`${path}.lastPlayed`]: { $lte: cooldownCutoff } },
           ],
         },
-        { $set: { [`${path}.freeLastUsed`]: now, [`${path}.lastPlayed`]: now } },
+        { $set: { [`${path}.lastPlayed`]: now } },
         { returnDocument: 'after' }
       );
-      let granted = result?.value || result;
-      let source = 'free';
-
+      const granted = result?.value || result;
       if (!granted) {
-        // Fall back to the 2h cooldown slot
-        const cooldownCutoff = new Date(now.getTime() - COOLDOWN_MS);
-        result = await users.findOneAndUpdate(
-          {
-            telegramId: tgId,
-            $or: [
-              { [`${path}.lastPlayed`]: { $exists: false } },
-              { [`${path}.lastPlayed`]: null },
-              { [`${path}.lastPlayed`]: { $lte: cooldownCutoff } },
-            ],
-          },
-          { $set: { [`${path}.lastPlayed`]: now } },
-          { returnDocument: 'after' }
-        );
-        granted = result?.value || result;
-        source = 'cooldown';
-        if (!granted) {
-          return res.status(400).json({ error: 'No play available yet. Wait for the timer or your free daily play.' });
-        }
+        return res.status(400).json({ error: 'No play available yet. Wait for the 2h timer.' });
       }
 
       const roll = gameKey === 'spin' ? rollSpin() : rollChest();
       const reward = roll.reward;
       const tier = roll.tier || null;
       await users.updateOne({ telegramId: tgId }, {
-        $inc: { egBalance: reward, [`${path}.totalEarned`]: reward, [`${path}.totalPlays`]: 1 },
+        $inc: { goldBalance: reward, [`${path}.totalEarned`]: reward, [`${path}.totalPlays`]: 1 },
       });
 
-      return res.status(200).json({ success: true, source, reward, tier, game: gameKey });
+      return res.status(200).json({ success: true, reward, tier, game: gameKey });
     }
 
     return res.status(400).json({ error: 'Invalid action. Use: status | play' });
   } catch (err) {
-    console.error('minigame.js error:', err);
+    console.error('miniapp.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-    }
+        }
