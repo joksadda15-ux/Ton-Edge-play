@@ -87,9 +87,32 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Tree not ready yet. ${Math.max(remaining, 1)} minutes left.` });
     }
 
+    // Referral milestone (mirror of the check in tasks.js) — either a task
+    // completion or a tree harvest can be the action that completes the
+    // "5 tasks + 3 tree harvests" pair, so both files check the same two
+    // fields on the just-updated document.
+    if (
+      (updated.tree?.totalHarvests || 0) >= 3 &&
+      (updated.completedTasks?.length || 0) >= 5 &&
+      updated.referredBy &&
+      !updated.referralValidPaid
+    ) {
+      const flagged = await users.findOneAndUpdate(
+        { telegramId: tgId, referralValidPaid: { $ne: true } },
+        { $set: { referralValidPaid: true } },
+        { returnDocument: 'after' }
+      );
+      if (flagged?.value || flagged) {
+        await users.updateOne(
+          { telegramId: updated.referredBy },
+          { $inc: { egBalance: 100, totalRefEarnedEG: 100 } }
+        );
+      }
+    }
+
     return res.status(200).json({ success: true, reward });
   } catch (err) {
     console.error('tree.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+                      }
