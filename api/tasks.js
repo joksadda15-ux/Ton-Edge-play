@@ -62,8 +62,15 @@ export default async function handler(req, res) {
       if (type === 'refer') {
         const referredUsers = await users
           .find({ referredBy: String(telegramId) })
-          .project({ firstName: 1, username: 1, createdAt: 1, _id: 0 })
+          .project({ firstName: 1, username: 1, createdAt: 1, completedTasks: 1, tree: 1, referralValidPaid: 1, _id: 0 })
           .toArray();
+
+        const referredSummary = referredUsers.map(r => ({
+          firstName: r.firstName, username: r.username, createdAt: r.createdAt,
+          tasksDone: Math.min(r.completedTasks?.length || 0, 5),
+          harvestsDone: Math.min(r.tree?.totalHarvests || 0, 3),
+          valid: !!r.referralValidPaid,
+        }));
 
         return res.status(200).json({
           success: true,
@@ -71,8 +78,9 @@ export default async function handler(req, res) {
           referLink: `${BOT_LINK}?startapp=${user.referCode}`,
           totalReferred: user.totalReferred || 0,
           totalRefEarned: user.totalRefEarned || 0,
-          referredUsers,
-          rewards: { onJoin: 600, on10Tasks: 1600 },
+          totalRefEarnedEG: user.totalRefEarnedEG || 0,
+          referredUsers: referredSummary,
+          rewards: { onJoin: 500, onValid: 100, validReq: { tasks: 5, harvests: 3 } },
         });
       }
 
@@ -121,26 +129,28 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Task already completed.' });
       }
 
-      // Referral milestone: when a referred user hits exactly 10 completed
-      // tasks, their referrer gets 80 EG — matches the Refer tab's
-      // advertised "get 80 EG when they complete 10 tasks". This never
-      // existed before; guarded by referral10Paid so it can only fire once
-      // even if task counts fluctuate later (e.g. an admin removing/adding
-      // tasks changes completedTasks length again).
+      // Referral milestone: once a referred user has completed 5 tasks AND
+      // harvested the tree 3 times, their referrer gets 100 EG — matches
+      // the Refer tab's advertised "friend completes 5 tasks + 3 tree
+      // claims" condition. Either action (a task here, or a harvest in
+      // tree.js) can be the one that completes the pair, so both files
+      // check the same two fields. referralValidPaid guards it to fire
+      // only once even if completedTasks/totalHarvests changes again later.
       if (
-        updated.completedTasks?.length === 10 &&
+        (updated.completedTasks?.length || 0) >= 5 &&
+        (updated.tree?.totalHarvests || 0) >= 3 &&
         updated.referredBy &&
-        !updated.referral10Paid
+        !updated.referralValidPaid
       ) {
         const flagged = await users.findOneAndUpdate(
-          { telegramId: String(telegramId), referral10Paid: { $ne: true } },
-          { $set: { referral10Paid: true } },
+          { telegramId: String(telegramId), referralValidPaid: { $ne: true } },
+          { $set: { referralValidPaid: true } },
           { returnDocument: 'after' }
         );
         if (flagged?.value || flagged) {
           await users.updateOne(
             { telegramId: updated.referredBy },
-            { $inc: { goldBalance: 1600, totalRefEarned: 1600 } }
+            { $inc: { egBalance: 100, totalRefEarnedEG: 100 } }
           );
         }
       }
@@ -153,4 +163,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+          }
