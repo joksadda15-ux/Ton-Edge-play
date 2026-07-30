@@ -10,7 +10,7 @@ const AD_NETWORKS = {
   gigapub:       { label: 'GigaPub Ads',        limit: 10, reward: 200 },
   monetag:       { label: 'Monetag Ads',        limit: 10, reward: 200 },
   adsgram_init:  { label: 'AdsGram Ads',        limit: 5,  reward: 200 },
-  adsgram_block: { label: 'AdsGram Block Ads',  limit: 5,  reward: 350 },
+  adsgram_block: { label: 'AdsGram Block Ads',  limit: 5,  reward: 300 },
 };
 
 export default async function handler(req, res) {
