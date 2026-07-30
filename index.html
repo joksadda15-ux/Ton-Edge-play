@@ -340,6 +340,8 @@ input,select,button{font-family:'Inter',sans-serif}
 .mdl-sel:focus,.mdl-inp:focus{border-color:var(--g2);box-shadow:inset 0 2px 6px rgba(0,0,0,.25),0 0 0 3px rgba(0,229,255,.13)}
 .mdl-prev{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 13px;font-size:11px;color:var(--muted);margin-top:9px;line-height:1.6;box-shadow:var(--glass-edge-top)}
 .mdl-sub{width:100%;margin-top:14px;background:linear-gradient(155deg,var(--g0),var(--g1) 45%,var(--g2));color:#071019;font-weight:800;font-size:14px;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.25);box-shadow:0 8px 22px -5px rgba(0,229,255,.4),var(--glass-edge-top)}
+.cv-quick{flex:1;min-width:64px;padding:9px 0;border-radius:10px;background:var(--glass-fill),var(--card2);border:1px solid var(--border2);color:var(--g0);font-weight:700;font-size:12.5px}
+.cv-quick:active{transform:scale(.95)}
 .tx-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
 .tx-item:last-child{border-bottom:none}
 
@@ -452,10 +454,10 @@ input,select,button{font-family:'Inter',sans-serif}
       </div>
 
       <div class="acts-grid">
-        <div class="act-card act-full g3d" onclick="claimDaily()">
+        <div class="act-card act-full g3d" onclick="triggerDailyClaim()">
           <div style="display:flex;align-items:center;gap:11px">
             <div class="act-ico" style="background:rgba(0,229,255,.09)"><i class="fa-solid fa-calendar-check" style="color:var(--g1)"></i></div>
-            <div><div class="act-title">Daily Reward</div><div class="act-sub">+500 Gold every 24 hours</div></div>
+            <div><div class="act-title">Daily Reward</div><div class="act-sub">+300 Gold every 24 hours · watch an ad to claim</div></div>
           </div>
           <span class="act-badge" id="daily-btn">Claim</span>
         </div>
@@ -526,7 +528,7 @@ input,select,button{font-family:'Inter',sans-serif}
         <div class="ref-hero-ico"><i class="fa-solid fa-share-nodes"></i></div>
         <div class="ref-hero-title">Invite Friends</div>
         <div class="ref-hero-desc">
-          Earn <b>+600 Gold</b> per referral — get <b>1,600 Gold</b> when they complete 10 tasks.
+          Earn <b>+500 Gold</b> instantly per referral — get <b>+100 EG</b> when they become valid.
         </div>
         <div class="ref-link-box g3d" id="ref-link-box" onclick="copyRef()">Loading your referral link...</div>
         <div class="ref-btns">
@@ -536,12 +538,12 @@ input,select,button{font-family:'Inter',sans-serif}
       </div>
       <div class="ref-stats-row">
         <div class="ref-stat"><div class="rs-val" id="ref-total">0</div><div class="rs-lbl">Total Referrals</div></div>
-        <div class="ref-stat"><div class="rs-val" style="font-size:20px" id="ref-earned">0 Gold</div><div class="rs-lbl">Gold Earned</div></div>
+        <div class="ref-stat"><div class="rs-val" style="font-size:20px" id="ref-earned">0 Gold</div><div class="rs-lbl">Total Earned</div></div>
       </div>
       <div class="how-card">
         <div class="how-title">HOW IT WORKS</div>
-        <div class="how-item"><div class="how-num">1</div><div class="how-text">Friend joins via your link → <b>you both get +600 Gold instantly</b></div></div>
-        <div class="how-item"><div class="how-num">2</div><div class="how-text">Friend completes <b>10 tasks</b> → you earn <b>+1,600 Gold</b></div></div>
+        <div class="how-item"><div class="how-num">1</div><div class="how-text">Friend joins via your link → <b>you get +500 Gold instantly</b></div></div>
+        <div class="how-item"><div class="how-num">2</div><div class="how-text">Friend completes <b>5 tasks</b> and claims the tree <b>3 times</b> → referral becomes valid, you earn <b>+100 EG</b></div></div>
       </div>
       <div class="ref-users-card">
         <div class="sec-title"><i class="fa-solid fa-users" style="color:var(--g1)"></i>My Referrals</div>
@@ -554,7 +556,7 @@ input,select,button{font-family:'Inter',sans-serif}
 
       <!-- AD TASKS CARD -->
       <div class="card cp" style="margin-bottom:14px">
-        <div class="sec-title"><i class="fa-solid fa-tv" style="color:var(--g1)"></i>Ad Tasks</div>
+        <div class="sec-title"><i class="fa-solid fa-tv" style="color:var(--g1)"></i>Ads Earn</div>
         <div id="adtasks-list"><div style="text-align:center;padding:20px 0;color:var(--muted);font-size:12px">Loading...</div></div>
       </div>
 
@@ -661,8 +663,14 @@ input,select,button{font-family:'Inter',sans-serif}
 <div class="mbg" id="cv-m">
   <div class="mdl">
     <div class="mdl-title"><i class="fa-solid fa-shuffle" style="color:#818cf8"></i>Convert Gold → EG<button class="mdl-x g3d" onclick="closeM('cv-m')"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="mdl-lbl">Gold Amount (min 20,000)</div>
-    <input class="mdl-inp" id="cv-gold" type="number" placeholder="Enter Gold amount" oninput="updateCvPrev()">
+    <div class="mdl-lbl">Gold Amount (min 5,000, multiples of 100)</div>
+    <input class="mdl-inp" id="cv-gold" type="number" step="100" placeholder="Enter Gold amount" oninput="updateCvPrev()">
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button class="cv-quick g3d" onclick="setCvAmount(10000)">10K</button>
+      <button class="cv-quick g3d" onclick="setCvAmount(20000)">20K</button>
+      <button class="cv-quick g3d" onclick="setCvAmount(50000)">50K</button>
+      <button class="cv-quick g3d" onclick="setCvAmount(1000000)">1M</button>
+    </div>
     <div class="mdl-prev" id="cv-prev">Enter amount to preview</div>
     <div style="font-size:10px;color:var(--muted);margin-top:8px">Rate: 1,000,000 Gold = 50,000 EG (20 Gold = 1 EG)</div>
     <button class="mdl-sub g3d" onclick="submitCv()">Convert</button>
@@ -712,19 +720,6 @@ const AD_TASK_META = {
 };
 let tgUser=null,initData='',userData=null,adTimer=null;
 
-// ── DEVICE FINGERPRINT ──────────────────────────────────────
-function getDeviceId(){
-  let d=localStorage.getItem('tep_did');
-  if(!d){d='D'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem('tep_did',d);}
-  return d;
-}
-function checkDevice(tgId){
-  const k='tep_du',d=getDeviceId(),s=localStorage.getItem(k);
-  if(!s){localStorage.setItem(k,JSON.stringify({id:String(tgId),d}));return true;}
-  try{const p=JSON.parse(s);if(p.id!==String(tgId))return false;}catch{localStorage.setItem(k,JSON.stringify({id:String(tgId),d}));}
-  return true;
-}
-
 // ── MAIN INIT ───────────────────────────────────────────────
 async function main(){
   const tg=window.Telegram.WebApp;
@@ -749,11 +744,12 @@ async function main(){
   tgUser=tg.initDataUnsafe.user;
   initData=tg.initData||'';
 
-  // ── ONE DEVICE ONE ACCOUNT ─────────────────────────────────
-  if(!checkDevice(tgUser.id)){
-    document.body.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:14px;background:#070B14;padding:32px;text-align:center"><div style="font-size:60px">🚫</div><h3 style="color:#ef4444;font-size:17px;font-weight:800;margin-bottom:6px">Account Suspended</h3><p style="color:#8B99B8;font-size:13px;line-height:1.7">This device is already registered<br>with a different account.<br><br><b style="color:#5B6B8C">One device · One account</b></p></div>`;
-    return;
-  }
+  // ── ONE ACCOUNT PER IP (server-verified) ────────────────────
+  try{
+    const ipr=await fetch(`${API}/user?action=ipcheck&telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const ipd=await ipr.json();
+    if(ipd.conflict){ showIpConflictScreen(ipd); return; }
+  }catch{/* if the check itself fails, don't block a genuine user out */}
 
   const onboarded=localStorage.getItem('tep_ob_'+tgUser.id);
   const opens=parseInt(localStorage.getItem('tep_op_'+tgUser.id)||'0')+1;
@@ -765,6 +761,45 @@ async function main(){
   } else {
     show('ob');
   }
+}
+
+// ── IP CONFLICT SCREEN (Mining-Buddies style) ────────────────
+function showIpConflictScreen(ipd){
+  const owner=ipd.owner;
+  const ownerName=owner?(owner.firstName||'Unknown'):'Unknown';
+  const ownerHandle=owner?.username?'@'+owner.username:'';
+  const switchesLeft=ipd.switchesLeft??0;
+  document.body.innerHTML=`
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:14px;background:#070B14;padding:32px 24px;text-align:center">
+    <div style="font-size:56px">📡</div>
+    <h3 style="color:#FFB800;font-size:19px;font-weight:800;margin:0">IP Already In Use</h3>
+    <p style="color:#8B99B8;font-size:13px;line-height:1.7;margin:0">This internet connection is already being used by another Ton Edge account.<br>Please switch your VPN or internet connection and refresh the Mini App.</p>
+    <div style="width:100%;max-width:320px;background:#0F1729;border:1px solid #2A3A63;border-radius:14px;padding:14px;margin-top:6px;text-align:left">
+      <div style="color:#5B6B8C;font-size:10px;letter-spacing:.06em;margin-bottom:8px">CURRENTLY USED BY</div>
+      <div style="color:#F1F5F9;font-weight:700;font-size:14px">${ownerName}</div>
+      <div style="color:#00E5FF;font-size:12px">${ownerHandle}</div>
+    </div>
+    <button onclick="location.reload()" style="width:100%;max-width:320px;margin-top:10px;padding:14px;border-radius:14px;border:none;background:linear-gradient(155deg,#7CF2FF,#00E5FF 45%,#6D5DF6);color:#071019;font-weight:800;font-size:14px">🔄 I've switched — try again</button>
+    ${switchesLeft>0
+      ? `<button onclick="confirmIpSwitch(${switchesLeft})" style="width:100%;max-width:320px;padding:13px;border-radius:14px;border:1px solid #2A3A63;background:transparent;color:#8B99B8;font-weight:600;font-size:12.5px">Use my account on this connection instead (${switchesLeft} left)</button>`
+      : `<p style="color:#5B6B8C;font-size:11px;line-height:1.6;max-width:320px">You've used both account-switches available on this connection. Please connect from a different network to continue.</p>`}
+    <p style="color:#5B6B8C;font-size:11px;line-height:1.6;max-width:320px">Sharing a connection with someone you know? Ask them, or contact support.</p>
+  </div>`;
+}
+function confirmIpSwitch(switchesLeft){
+  const ok1=confirm(`⚠️ Warning: switching will reset THIS account's Gold and EG balance to 0, and this can only be done ${switchesLeft} more time(s) ever. Continue?`);
+  if(!ok1)return;
+  const ok2=confirm('Are you absolutely sure? This cannot be undone. Your current balance will become 0.');
+  if(!ok2)return;
+  doIpSwitch();
+}
+async function doIpSwitch(){
+  try{
+    const r=await fetch(`${API}/user`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,action:'ipswitch'})});
+    const d=await r.json();
+    if(d.success){ location.reload(); }
+    else { alert(d.error||'Switch failed'); }
+  }catch{ alert('Network error — try again.'); }
 }
 
 function showInterstitial(){
@@ -789,7 +824,7 @@ function markCh(id){
   // Wait 4s for user to actually join, then check
   setTimeout(async()=>{
     try{
-      const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+      const r=await fetch(`${API}/user?action=checkjoin&telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
       if(!r.ok) throw new Error('API error');
       const d=await r.json();
       const joined=id==='ch1'?d.channel:d.community;
@@ -809,7 +844,7 @@ function markCh(id){
 
 async function verifyJoin(){
   try{
-    const res=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const res=await fetch(`${API}/user?action=checkjoin&telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
     const data=await res.json();
     if(data.joined){
       localStorage.setItem('tep_ob_'+tgUser.id,'1');
@@ -841,7 +876,7 @@ async function enterApp(){
 
 async function checkChannelPeriodic(){
   try{
-    const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const r=await fetch(`${API}/user?action=checkjoin&telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
     if(!r.ok) return; // API/auth hiccup — don't boot the user out on a transient error
     const d=await r.json();
     if(!d.joined){
@@ -910,7 +945,7 @@ async function remindChannelIfNeeded(){
   if(Date.now()-lastCheck<5*60*1000)return;
   sessionStorage.setItem('ch_check',Date.now());
   try{
-    const r=await fetch(`${API}/user/checkjoin?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
+    const r=await fetch(`${API}/user?action=checkjoin&telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
     if(!r.ok) return; // API/auth hiccup — don't show a false "please rejoin" toast
     const d=await r.json();
     if(!d.joined){
@@ -1002,9 +1037,14 @@ function showRealAd(network){
 async function loadAdTasksStatus(){
   try{
     const r=await fetch(`${API}/ads?telegramId=${tgUser.id}&initData=${encodeURIComponent(initData)}`);
-    const d=await r.json();if(!d.success)return;
+    if(!r.ok) throw new Error('bad response');
+    const d=await r.json();
+    if(!d.success) throw new Error(d.error||'failed');
     renderAdTasksUI(d.networks);
-  }catch{}
+  }catch{
+    const list=qs('#adtasks-list');
+    if(list)list.innerHTML='<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:12px;cursor:pointer" onclick="loadAdTasksStatus()">Couldn\'t load ads · tap to retry</div>';
+  }
 }
 function renderAdTasksUI(networks){
   const list=qs('#adtasks-list');if(!list)return;
@@ -1033,7 +1073,7 @@ async function watchAdTask(network){
 // Watch ad then give daily reward
 async function triggerDailyClaim(){
   const btn=qs('#daily-btn');
-  if(btn&&btn.textContent==='Claimed'){toast('warning','Already claimed. Come back tomorrow.');return;}
+  if(btn&&btn.textContent.startsWith('Claimed')){toast('warning','Already claimed. Come back tomorrow.');return;}
   // Show ad first (Monetag or GigaPub)
   try{
     await showAdForReward('monetag','Daily Reward Ad');
@@ -1112,7 +1152,7 @@ function updateDailyBtn(claimed){
     btn.style.background='rgba(0,229,255,.1)';
     btn.style.color='var(--g1)';
     btn.style.border='1px solid rgba(0,229,255,.2)';
-    if(sub)sub.textContent='+500 Gold every 24 hours';
+    if(sub)sub.textContent='+300 Gold every 24 hours · watch an ad to claim';
     if(card)card.style.opacity='1';
   }
 }
@@ -1143,7 +1183,7 @@ async function redeemPromo(){
     const r=await fetch(`${API}/daily`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({telegramId:tgUser.id,initData,action:'promo',code})});
     const d=await r.json();
-    if(d.success){qs('#promo-inp').value='';toast('success',`+${d.reward} Gold from promo!`);await refreshUser();}
+    if(d.success){qs('#promo-inp').value='';toast('success',`+${d.reward} ${d.currency==='gold'?'Gold':'EG'} from promo!`);await refreshUser();}
     else toast('error',d.error||'Already used');
   }catch{toast('error','Network error');}
 }
@@ -1199,11 +1239,15 @@ async function loadRefData(){
     const r=await fetch(`${API}/tasks?telegramId=${tgUser.id}&type=refer&initData=${encodeURIComponent(initData)}`);
     const d=await r.json();if(!d.success)return;
     qs('#ref-total').textContent=d.totalReferred||0;
-    qs('#ref-earned').textContent=(d.totalRefEarned||0).toLocaleString()+' Gold';
+    const goldEarned=d.totalRefEarned||0, egEarned=d.totalRefEarnedEG||0;
+    qs('#ref-earned').textContent=goldEarned.toLocaleString()+' Gold'+(egEarned?` + ${egEarned.toLocaleString()} EG`:'');
     qs('#ref-link-box').textContent=d.referLink||'';
     const list=qs('#ref-list');
     if(!d.referredUsers?.length){list.innerHTML='<div style="color:var(--muted);font-size:12px">No referrals yet</div>';return;}
-    list.innerHTML=d.referredUsers.map((u,i)=>`<div class="ref-user-row"><span style="color:var(--muted)">${i+1}. ${u.firstName||''} ${u.username?'@'+u.username:''}</span><span style="color:var(--muted);font-size:10px">${new Date(u.createdAt).toLocaleDateString()}</span></div>`).join('');
+    list.innerHTML=d.referredUsers.map((u,i)=>{
+      const badge=u.valid?`<span style="color:var(--emerald);font-size:10px;font-weight:700">✓ Valid</span>`:`<span style="color:var(--muted);font-size:10px">${u.tasksDone}/5 tasks · ${u.harvestsDone}/3 harvests</span>`;
+      return `<div class="ref-user-row"><span style="color:var(--muted)">${i+1}. ${u.firstName||''} ${u.username?'@'+u.username:''}</span><span style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">${badge}<span style="color:var(--muted);font-size:10px">${new Date(u.createdAt).toLocaleDateString()}</span></span></div>`;
+    }).join('');
   }catch{}
 }
 function copyRef(){
@@ -1273,9 +1317,14 @@ function updateCvPrev(){
   const gold=parseFloat(qs('#cv-gold').value)||0;
   qs('#cv-prev').textContent=gold?`${gold.toLocaleString()} Gold → ${(gold/GOLD_PER_EG).toLocaleString('en',{maximumFractionDigits:2})} EG`:'Enter amount to preview';
 }
+function setCvAmount(v){
+  qs('#cv-gold').value=v;
+  updateCvPrev();
+}
 async function submitCv(){
   const gold=parseFloat(qs('#cv-gold').value);
-  if(!gold||gold<20000){toast('error','Minimum 20,000 Gold');return;}
+  if(!gold||gold<5000){toast('error','Minimum 5,000 Gold');return;}
+  if(gold%100!==0){toast('error','Amount must end in 00 (e.g. 5000, 5500, 6000)');return;}
   if(!userData||gold>userData.goldBalance){toast('error','Insufficient Gold');return;}
   try{
     const r=await fetch(`${API}/convert`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegramId:tgUser.id,initData,goldAmount:gold})});
