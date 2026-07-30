@@ -7,8 +7,8 @@ import { bdTodayKey } from '../lib/dateUtils.js';
 // Play → Ad Tasks. Each network has its own daily watch limit and Gold
 // reward per ad. Counters reset every day at Bangladesh midnight (bdTodayKey).
 const AD_NETWORKS = {
-  gigapub:       { label: 'GigaPub Ads',        limit: 10, reward: 200 },
-  monetag:       { label: 'Monetag Ads',        limit: 10, reward: 200 },
+  gigapub:       { label: 'GigaPub Ads',        limit: 5,  reward: 200 },
+  monetag:       { label: 'Monetag Ads',        limit: 5,  reward: 200 },
   adsgram_init:  { label: 'AdsGram Ads',        limit: 5,  reward: 200 },
   adsgram_block: { label: 'AdsGram Block Ads',  limit: 5,  reward: 300 },
 };
@@ -78,9 +78,22 @@ export default async function handler(req, res) {
     }
     const watched = updated.adTasks?.[today]?.[network] || 0;
 
+    // Prune adTasks day-keys older than 30 days — once a day's counters are
+    // read here, nothing ever looks at them again, so left alone this
+    // object grows by one key per day forever. Cheap: only writes when
+    // there's actually something stale (string comparison works because
+    // the keys are YYYY-MM-DD, which sorts lexically like a real date).
+    const cutoffKey = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const staleKeys = Object.keys(updated.adTasks || {}).filter(k => k < cutoffKey);
+    if (staleKeys.length) {
+      const unset = {};
+      for (const k of staleKeys) unset[`adTasks.${k}`] = '';
+      await users.updateOne({ telegramId: tgId }, { $unset: unset });
+    }
+
     return res.status(200).json({ success: true, reward: cfg.reward, watched, limit: cfg.limit });
   } catch (err) {
     console.error('ads.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+      }
