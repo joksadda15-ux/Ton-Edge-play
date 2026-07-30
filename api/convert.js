@@ -5,7 +5,7 @@ import { verifyTelegramInit } from '../lib/auth.js';
 
 // 1,000,000 Gold = 50,000 EG  →  20 Gold = 1 EG
 const GOLD_PER_EG = 20;
-const MIN_CONVERT_GOLD = 20000; // = 1,000 EG
+const MIN_CONVERT_GOLD = 5000; // = 250 EG
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
@@ -23,6 +23,9 @@ export default async function handler(req, res) {
   }
   if (amount < MIN_CONVERT_GOLD) {
     return res.status(400).json({ error: `Minimum conversion is ${MIN_CONVERT_GOLD.toLocaleString()} Gold.` });
+  }
+  if (amount % 100 !== 0) {
+    return res.status(400).json({ error: 'Amount must be a round number ending in 00 (e.g. 5000, 5500, 6000, 10000).' });
   }
 
   const tgUser = verifyTelegramInit(initData);
