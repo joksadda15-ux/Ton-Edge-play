@@ -1,12 +1,9 @@
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
-const DAILY_REWARD = 300; // Gold, not EG
+const DAILY_REWARD = 15; // MM$
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -46,7 +43,7 @@ export default async function handler(req, res) {
             { dailyClaimLast: { $lte: cutoff } },
           ],
         },
-        { $inc: { goldBalance: DAILY_REWARD }, $set: { dailyClaimLast: now } },
+        { $inc: { egBalance: DAILY_REWARD }, $set: { dailyClaimLast: now } },
         { returnDocument: 'after' }
       );
       const updated = result?.value || result;
@@ -81,12 +78,10 @@ export default async function handler(req, res) {
       // this endpoint directly with checkOnly:false and skip the ad
       // entirely. Low stakes (small, capped, one-time-per-user reward) but
       // flagging it: if the ad-watch is meant to be mandatory, it isn't.
-      if (checkOnly) return res.status(200).json({ valid: true, reward: promo.reward, currency: promo.currency === 'gold' ? 'gold' : 'eg' });
+      if (checkOnly) return res.status(200).json({ valid: true, reward: promo.reward, currency: 'mm' });
 
-      // Old promo codes created before the Gold/EG choice existed have no
-      // currency field — default those to 'eg' so they keep behaving exactly
-      // as they always did.
-      const field = promo.currency === 'gold' ? 'goldBalance' : 'egBalance';
+      // Every promo pays MM$ now (old Gold promos are converted by the migration script).
+      const field = 'egBalance';
 
       // Atomic redeem: only succeeds if this code isn't already in
       // promosUsed. Previously read-then-write, so two simultaneous redeems
@@ -107,7 +102,7 @@ export default async function handler(req, res) {
       // of extra redemptions on a capped code, not unlimited balance growth.
       await promos.updateOne({ code: cleanCode }, { $inc: { usedCount: 1 } });
 
-      return res.status(200).json({ success: true, reward: promo.reward, currency: promo.currency === 'gold' ? 'gold' : 'eg' });
+      return res.status(200).json({ success: true, reward: promo.reward, currency: 'mm' });
     }
 
     return res.status(400).json({ error: 'Invalid action. Use: daily | promo' });
@@ -115,4 +110,4 @@ export default async function handler(req, res) {
     console.error('daily.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-             }
+}
