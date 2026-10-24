@@ -1,4 +1,5 @@
 // FILE PATH: api/ads.js
+// (GitHub repo te ei path e file ta rakhbe: api/ads.js)
 
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
@@ -8,9 +9,7 @@ import { bdTodayKey } from '../lib/dateUtils.js';
 // reward per ad (50,000 MM$ = $1). Counters reset every day at Bangladesh midnight (bdTodayKey).
 const AD_NETWORKS = {
   gigapub:       { label: 'GigaPub Ads',        limit: 5,  reward: 10 },
-  monetag:       { label: 'Monetag Ads',        limit: 5,  reward: 10 },
   adsgram_init:  { label: 'AdsGram Ads',        limit: 5,  reward: 10 },
-  adsgram_block: { label: 'AdsGram Block Ads',  limit: 5,  reward: 15 },
 };
 
 export default async function handler(req, res) {
@@ -93,4 +92,4 @@ export default async function handler(req, res) {
     console.error('ads.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-        }
+}
