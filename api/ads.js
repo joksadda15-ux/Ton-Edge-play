@@ -4,19 +4,16 @@ import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
 
-// Play → Ad Tasks. Each network has its own daily watch limit and Gold
-// reward per ad. Counters reset every day at Bangladesh midnight (bdTodayKey).
+// Play → Ad Tasks. Each network has its own daily watch limit and MM$
+// reward per ad (50,000 MM$ = $1). Counters reset every day at Bangladesh midnight (bdTodayKey).
 const AD_NETWORKS = {
-  gigapub:       { label: 'GigaPub Ads',        limit: 5,  reward: 200 },
-  monetag:       { label: 'Monetag Ads',        limit: 5,  reward: 200 },
-  adsgram_init:  { label: 'AdsGram Ads',        limit: 5,  reward: 200 },
-  adsgram_block: { label: 'AdsGram Block Ads',  limit: 5,  reward: 300 },
+  gigapub:       { label: 'GigaPub Ads',        limit: 5,  reward: 10 },
+  monetag:       { label: 'Monetag Ads',        limit: 5,  reward: 10 },
+  adsgram_init:  { label: 'AdsGram Ads',        limit: 5,  reward: 10 },
+  adsgram_block: { label: 'AdsGram Block Ads',  limit: 5,  reward: 15 },
 };
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const telegramId = req.query?.telegramId || req.body?.telegramId;
@@ -69,7 +66,7 @@ export default async function handler(req, res) {
           { [path]: { $lt: cfg.limit } },
         ],
       },
-      { $inc: { goldBalance: cfg.reward, [path]: 1 } },
+      { $inc: { egBalance: cfg.reward, [path]: 1 } },
       { returnDocument: 'after' }
     );
     const updated = result?.value || result;
@@ -96,4 +93,4 @@ export default async function handler(req, res) {
     console.error('ads.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-      }
+        }
