@@ -1,4 +1,5 @@
 // FILE PATH: api/tasks.js
+// (GitHub repo te ei path e file ta rakhbe: api/tasks.js)
 
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
@@ -72,6 +73,19 @@ export default async function handler(req, res) {
       const task = await tasksCol.findOne({ id: taskId, active: true });
       if (!task) return res.status(404).json({ error: 'Task not found' });
 
+      if (user.accountLocked) return res.status(403).json({ error: 'Account under review.' });
+
+      // Reserve one of the task's limited slots first (user-created tasks are capped by what the creator paid for).
+      const slotRes = task.maxCompletions
+        ? await tasksCol.findOneAndUpdate(
+            { id: taskId, active: true, $expr: { $lt: [{ $ifNull: ['$completedCount', 0] }, '$maxCompletions'] } },
+            { $inc: { completedCount: 1 } }, { returnDocument: 'after' })
+        : await tasksCol.findOneAndUpdate({ id: taskId, active: true }, { $inc: { completedCount: 1 } }, { returnDocument: 'after' });
+      const slot = slotRes?.value !== undefined ? slotRes.value : slotRes;
+      if (!slot) return res.status(400).json({ error: 'Task is full or no longer available.' });
+      if (slot.maxCompletions && slot.completedCount >= slot.maxCompletions)
+        await tasksCol.updateOne({ id: taskId }, { $set: { active: false, completedAt: new Date() } });
+
       // Atomic claim: only succeeds if this task isn't already in
       // completedTasks. Previously this was a separate read-then-write,
       // so two simultaneous claims for the same task could both succeed
@@ -83,6 +97,7 @@ export default async function handler(req, res) {
       );
       const updated = result?.value || result;
       if (!updated) {
+        await tasksCol.updateOne({ id: taskId }, { $inc: { completedCount: -1 }, $set: { active: true }, $unset: { completedAt: '' } }); // give the slot back
         return res.status(400).json({ error: 'Task already completed.' });
       }
 
@@ -94,4 +109,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+                                              }
