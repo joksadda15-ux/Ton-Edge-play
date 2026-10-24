@@ -1,4 +1,5 @@
 // FILE PATH: api/user.js
+// (GitHub repo te ei path e file ta rakhbe: api/user.js)
 //
 // Handles /api/user (register / fetch / heartbeat) plus small
 // action-routed extras that used to be their own files:
@@ -11,17 +12,14 @@
 
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
+import { getClientIp, checkDevice, claimDevice, claimDeviceForUser, getOwnerPublicInfo, registryKey, recordSignupAndCheckVelocity, IP_SIGNUP_VELOCITY_THRESHOLD } from '../lib/ipRegistry.js';
+import { checkAndRecordFingerprint } from '../lib/fingerprintCheck.js';
+import { isRegistryBanned } from '../lib/banRegistry.js';
 
 const MAX_IP_SWITCHES = 2;
 
 // Referral: referrer gets this many MM$ the moment a friend joins via their link.
 const REFER_REWARD_MM = 250;
-
-function getClientIp(req) {
-  const fwd = req.headers['x-forwarded-for'];
-  if (fwd) return String(fwd).split(',')[0].trim();
-  return req.socket?.remoteAddress || 'unknown';
-}
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -32,83 +30,47 @@ export default async function handler(req, res) {
     const db = await getDb();
     const users = db.collection('users');
 
-    // ── GET /api/user?action=ipcheck ───────────────────────────
+    // ── GET /api/user?action=ipcheck  (one account per DEVICE; fingerprint `fp`, IP only as soft fallback) ──
     if (req.method === 'GET' && action === 'ipcheck') {
-      const telegramId = req.query.telegramId;
+      const { telegramId, fp = '' } = req.query;
       const initData = req.query.initData || '';
       if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-
       const tgUser = verifyTelegramInit(initData);
-      if (!tgUser || String(tgUser.id) !== String(telegramId)) {
-        return res.status(403).json({ error: 'Invalid Telegram session' });
-      }
+      if (!tgUser || String(tgUser.id) !== String(telegramId)) return res.status(403).json({ error: 'Invalid Telegram session' });
 
       const tgId = String(telegramId);
-      const ip = getClientIp(req);
-      if (!ip || ip === 'unknown') return res.status(200).json({ success: true, conflict: false });
-
-      const user = await users.findOne({ telegramId: tgId });
-      if (!user) return res.status(404).json({ error: 'User not found' });
-
-      const ipRegistry = db.collection('ipRegistry');
-      const existing = await ipRegistry.findOne({ ip });
-      if (!existing) {
-        await ipRegistry.updateOne({ ip }, { $set: { ip, telegramId: tgId, updatedAt: new Date() } }, { upsert: true });
+      const chk = await checkDevice(db, fp, getClientIp(req), tgId);
+      if (chk.fallbackCollision) await users.updateOne({ telegramId: tgId }, { $set: { ipFallbackFlag: true } });
+      if (!chk.blocked) {
+        if (chk.unclaimed && await users.findOne({ telegramId: tgId }, { projection: { _id: 1 } })) await claimDevice(db, chk.key, tgId);
         return res.status(200).json({ success: true, conflict: false });
       }
-      if (existing.telegramId === tgId) {
-        await ipRegistry.updateOne({ ip }, { $set: { updatedAt: new Date() } });
-        return res.status(200).json({ success: true, conflict: false });
-      }
-      const owner = await users.findOne(
-        { telegramId: existing.telegramId },
-        { projection: { firstName: 1, username: 1, telegramId: 1 } }
-      );
-      return res.status(200).json({
-        success: true,
-        conflict: true,
-        owner: owner ? { firstName: owner.firstName, username: owner.username, telegramId: owner.telegramId } : null,
-        switchesLeft: Math.max(0, MAX_IP_SWITCHES - (user.ipSwitchCount || 0)),
-      });
+      const owner = await getOwnerPublicInfo(db, chk.ownerId);
+      const me = await users.findOne({ telegramId: tgId }, { projection: { ipSwitchCount: 1 } });
+      return res.status(200).json({ success: true, conflict: true, owner, switchesLeft: Math.max(0, MAX_IP_SWITCHES - (me?.ipSwitchCount || 0)) });
     }
 
     // ── POST /api/user  {action:'ipswitch'} ────────────────────
     if (req.method === 'POST' && action === 'ipswitch') {
-      const { telegramId, initData } = req.body;
+      const { telegramId, initData, fp = '' } = req.body;
       if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
       const tgUser = verifyTelegramInit(initData);
-      if (!tgUser || String(tgUser.id) !== String(telegramId)) {
-        return res.status(403).json({ error: 'Invalid Telegram session' });
-      }
+      if (!tgUser || String(tgUser.id) !== String(telegramId)) return res.status(403).json({ error: 'Invalid Telegram session' });
       const tgId = String(telegramId);
       const ip = getClientIp(req);
-      if (!ip || ip === 'unknown') return res.status(400).json({ error: 'Could not determine connection.' });
+      const key = registryKey(fp, ip);
+      if (!key) return res.status(400).json({ error: 'Could not determine your device.' });
 
       const user = await users.findOne({ telegramId: tgId });
-      if (!user) return res.status(404).json({ error: 'User not found' });
+      const used = user?.ipSwitchCount || 0;
+      if (used >= MAX_IP_SWITCHES) return res.status(403).json({ error: 'No account switches remaining for this account.' });
+      const chk = await checkDevice(db, fp, ip, tgId);
+      if (!chk.blocked) return res.status(200).json({ success: true, alreadyOwner: true });
 
-      const switchesUsed = user.ipSwitchCount || 0;
-      if (switchesUsed >= MAX_IP_SWITCHES) {
-        return res.status(403).json({ error: 'No account switches remaining for this account.' });
-      }
-
-      const ipRegistry = db.collection('ipRegistry');
-      const existing = await ipRegistry.findOne({ ip });
-      if (existing && existing.telegramId === tgId) {
-        return res.status(200).json({ success: true, alreadyOwner: true });
-      }
-
-      const updated = await users.findOneAndUpdate(
-        { telegramId: tgId, ipSwitchCount: { $lt: MAX_IP_SWITCHES } },
-        { $set: { egBalance: 0 }, $inc: { ipSwitchCount: 1 } },
-        { returnDocument: 'after' }
-      );
-      if (!updated?.value && !updated) {
-        return res.status(403).json({ error: 'No account switches remaining for this account.' });
-      }
-
-      await ipRegistry.updateOne({ ip }, { $set: { ip, telegramId: tgId, updatedAt: new Date() } }, { upsert: true });
-      return res.status(200).json({ success: true, switchesLeft: Math.max(0, MAX_IP_SWITCHES - (switchesUsed + 1)) });
+      const r = await claimDeviceForUser(db, key, tgId);
+      if (!r.ok) return res.status(429).json({ error: `This device was switched recently. Try again in ${Math.ceil(r.retryAfterMs / 3600000)}h.` });
+      if (user) await users.updateOne({ telegramId: tgId }, { $inc: { ipSwitchCount: 1 } });
+      return res.status(200).json({ success: true, switchesLeft: Math.max(0, MAX_IP_SWITCHES - (used + 1)) });
     }
 
     // ── GET /api/user?telegramId=xxx ───────────────────────────
@@ -131,7 +93,7 @@ export default async function handler(req, res) {
 
     // ── POST /api/user  (register / app-open heartbeat) ───────────
     if (req.method === 'POST') {
-      const { telegramId, username, firstName, referCode, initData } = req.body;
+      const { telegramId, username, firstName, referCode, initData, fp = '' } = req.body;
 
       if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
@@ -143,7 +105,9 @@ export default async function handler(req, res) {
       const tgId = String(telegramId);
       const existing = await users.findOne({ telegramId: tgId });
 
+      const clientIp = getClientIp(req);
       if (existing) {
+        checkAndRecordFingerprint(db, tgId, fp).catch(() => {}); // soft multi-account flag (admin review only)
         const updated = await users.findOneAndUpdate(
           { telegramId: tgId },
           { $set: { lastActive: new Date() }, $inc: { appOpens: 1 } },
@@ -152,6 +116,9 @@ export default async function handler(req, res) {
         const userDoc = updated?.value || updated;
         return res.status(200).json({ success: true, user: userDoc, isNew: false });
       }
+
+      // permanently banned Telegram IDs can never open a fresh account
+      if (await isRegistryBanned(db, tgId)) return res.status(403).json({ error: 'Account banned' });
 
       const myReferCode =
         'TEP' + tgId.slice(-5) + Math.random().toString(36).slice(2, 5).toUpperCase();
@@ -175,9 +142,16 @@ export default async function handler(req, res) {
         appOpens: 1,
         withdrawPending: false,
         ipSwitchCount: 0,
+        signupIp: clientIp,
         createdAt: new Date(),
         lastActive: new Date(),
       };
+
+      // bot-farm guard: many NEW accounts from one IP in minutes -> locked (no withdraw / ad rewards) until admin reviews
+      const { count: ipSignups } = await recordSignupAndCheckVelocity(db, clientIp);
+      if (ipSignups >= IP_SIGNUP_VELOCITY_THRESHOLD) {
+        newUser.accountLocked = true; newUser.accountLockedAt = new Date(); newUser.accountLockedReason = 'ip_signup_velocity';
+      }
 
       if (referCode) {
         const referrer = await users.findOne({ referCode });
@@ -191,6 +165,9 @@ export default async function handler(req, res) {
       }
 
       await users.insertOne(newUser);
+      const devKey = registryKey(fp, clientIp);
+      if (devKey && !devKey.startsWith('ip:')) { const c = await checkDevice(db, fp, clientIp, tgId); if (c.unclaimed) await claimDevice(db, devKey, tgId); }
+      checkAndRecordFingerprint(db, tgId, fp).catch(() => {});
       return res.status(200).json({ success: true, user: newUser, isNew: true });
     }
 
