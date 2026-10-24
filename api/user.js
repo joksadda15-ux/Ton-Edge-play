@@ -1,8 +1,7 @@
 // FILE PATH: api/user.js
 //
-// Handles /api/user (register / fetch / heartbeat) plus two small
+// Handles /api/user (register / fetch / heartbeat) plus small
 // action-routed extras that used to be their own files:
-//   ?action=checkjoin  — GET,  was api/user/checkjoin.js
 //   ?action=ipcheck    — GET,  was api/ipcheck.js
 //   ?action=ipswitch   — POST, was the POST branch of api/ipcheck.js
 // Merged in because Vercel's free (Hobby) plan caps a project at 12
@@ -13,25 +12,10 @@
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHANNEL = '@ton_edge_play';
-const COMMUNITY = '@ton_edge_community';
 const MAX_IP_SWITCHES = 2;
 
-async function checkMembership(userId, chatUsername) {
-  try {
-    const r = await fetch(
-      `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${encodeURIComponent(chatUsername)}&user_id=${userId}`
-    );
-    if (!r.ok) return false;
-    const data = await r.json();
-    if (!data.ok) return false;
-    const status = data.result?.status;
-    return ['member', 'administrator', 'creator'].includes(status);
-  } catch {
-    return false;
-  }
-}
+// Referral: referrer gets this many MM$ the moment a friend joins via their link.
+const REFER_REWARD_MM = 250;
 
 function getClientIp(req) {
   const fwd = req.headers['x-forwarded-for'];
@@ -40,9 +24,6 @@ function getClientIp(req) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const action = req.query?.action || req.body?.action;
@@ -50,35 +31,6 @@ export default async function handler(req, res) {
   try {
     const db = await getDb();
     const users = db.collection('users');
-
-    // ── GET /api/user?action=checkjoin ─────────────────────────
-    if (req.method === 'GET' && action === 'checkjoin') {
-      const telegramId = req.query.telegramId;
-      const initData = req.query.initData || '';
-      if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-
-      const tgUser = verifyTelegramInit(initData);
-      if (!tgUser || String(tgUser.id) !== String(telegramId)) {
-        return res.status(403).json({ error: 'Invalid Telegram session' });
-      }
-
-      try {
-        const [channel, community] = await Promise.all([
-          checkMembership(telegramId, CHANNEL),
-          checkMembership(telegramId, COMMUNITY),
-        ]);
-        return res.status(200).json({
-          joined: channel && community,
-          channel,
-          community,
-          telegramId: String(telegramId),
-          checkedAt: new Date().toISOString(),
-        });
-      } catch (err) {
-        console.error('checkjoin error:', err);
-        return res.status(200).json({ joined: false, channel: false, community: false, error: 'Check failed' });
-      }
-    }
 
     // ── GET /api/user?action=ipcheck ───────────────────────────
     if (req.method === 'GET' && action === 'ipcheck') {
@@ -148,7 +100,7 @@ export default async function handler(req, res) {
 
       const updated = await users.findOneAndUpdate(
         { telegramId: tgId, ipSwitchCount: { $lt: MAX_IP_SWITCHES } },
-        { $set: { goldBalance: 0, egBalance: 0 }, $inc: { ipSwitchCount: 1 } },
+        { $set: { egBalance: 0 }, $inc: { ipSwitchCount: 1 } },
         { returnDocument: 'after' }
       );
       if (!updated?.value && !updated) {
@@ -208,7 +160,6 @@ export default async function handler(req, res) {
         telegramId: tgId,
         username: username || '',
         firstName: firstName || 'User',
-        goldBalance: 0,
         egBalance: 0,
         referCode: myReferCode,
         referredBy: null,
@@ -216,7 +167,6 @@ export default async function handler(req, res) {
         totalRefEarned: 0,
         totalRefEarnedEG: 0,
         dailyClaimLast: null,
-        tree: { lastHarvest: null, totalHarvests: 0, totalGold: 0 },
         adTasks: {},
         totalAdsWatched: 0,
         completedTasks: [],
@@ -235,7 +185,7 @@ export default async function handler(req, res) {
           newUser.referredBy = referrer.telegramId;
           await users.updateOne(
             { telegramId: referrer.telegramId },
-            { $inc: { goldBalance: 500, totalRefEarned: 500, totalReferred: 1 } }
+            { $inc: { egBalance: REFER_REWARD_MM, totalRefEarnedEG: REFER_REWARD_MM, totalReferred: 1 } }
           );
         }
       }
@@ -249,4 +199,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-                                    }
+    }
