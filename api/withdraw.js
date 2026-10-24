@@ -1,16 +1,16 @@
 // FILE PATH: api/withdraw.js
+// (GitHub repo te ei path e file ta rakhbe: api/withdraw.js)
 
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
 
-// 50,000 EG = $1 (1,000,000 Gold = 50,000 EG)
-const MIN_WITHDRAW_EG = 5000; // ≈ $0.10
+// 50,000 MM$ = $1
+const MIN_WITHDRAW_EG = 5000; // 5,000 MM$ ≈ $0.10 (field/var names keep "eg" so existing DB data still works)
 const EG_TO_USDT = 1 / 50000;
 
 // ── Withdraw gate requirements ──────────────────────────────────
 const MIN_TASKS_COMPLETED = 5;
-const MIN_TREE_HARVESTS = 1;
 const MIN_ADS_TODAY = 6;
 
 function countAdsToday(user) {
@@ -22,9 +22,6 @@ function countAdsToday(user) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://ton-edge-play.vercel.app');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -42,7 +39,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'method must be tonkeeper or binance' });
 
   if (amount < MIN_WITHDRAW_EG)
-    return res.status(400).json({ error: `Minimum withdrawal is ${MIN_WITHDRAW_EG} EG.` });
+    return res.status(400).json({ error: `Minimum withdrawal is ${MIN_WITHDRAW_EG} MM$.` });
 
   if (method === 'binance') {
     if (!/^\d{6,12}$/.test(String(address)))
@@ -68,17 +65,15 @@ export default async function handler(req, res) {
     const user = await users.findOne({ telegramId: String(telegramId) });
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
+    if (user.accountLocked) return res.status(403).json({ error: 'Account under review — withdrawals are paused. Contact support.' });
 
     // ── Withdraw gate ──────────────────────────────────────────
     const tasksCompleted = (user.completedTasks || []).length;
-    const treeHarvests = user.tree?.totalHarvests || 0;
     const adsToday = countAdsToday(user);
 
     const missing = [];
     if (tasksCompleted < MIN_TASKS_COMPLETED)
       missing.push(`complete ${MIN_TASKS_COMPLETED - tasksCompleted} more task(s)`);
-    if (treeHarvests < MIN_TREE_HARVESTS)
-      missing.push(`harvest your fruit tree at least once`);
     if (adsToday < MIN_ADS_TODAY)
       missing.push(`watch ${MIN_ADS_TODAY - adsToday} more ad(s) today`);
 
@@ -87,7 +82,6 @@ export default async function handler(req, res) {
         error: `Withdraw requirements not met: ${missing.join(', ')}.`,
         requirements: {
           tasksCompleted, tasksRequired: MIN_TASKS_COMPLETED,
-          treeHarvests, treeHarvestsRequired: MIN_TREE_HARVESTS,
           adsToday, adsRequired: MIN_ADS_TODAY,
         },
       });
@@ -145,4 +139,4 @@ export default async function handler(req, res) {
     console.error('withdraw.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+      }
