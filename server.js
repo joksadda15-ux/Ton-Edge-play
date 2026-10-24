@@ -1,3 +1,5 @@
+// FILE PATH: server.js
+// (GitHub repo te ei path e file ta rakhbe: server.js)
 // Gram Edge Farm API — standalone Express server (no Vercel needed).
 // Runs on any Node host: Render, Railway, VPS, etc.
 import express from 'express';
@@ -9,6 +11,7 @@ import daily from './api/daily.js';
 import ads from './api/ads.js';
 import withdraw from './api/withdraw.js';
 import bot from './api/bot.js';
+import farm from './api/farm.js';
 
 const app = express();
 app.set('trust proxy', true); // so x-forwarded-for / IP checks work behind the host's proxy
@@ -29,7 +32,7 @@ app.use(cors({
 // Health check — also use this URL for the free uptime pinger (keeps the server awake).
 app.get('/health', (_req, res) => res.json({ ok: true, t: Date.now() }));
 
-const routes = { user, tasks, daily, ads, withdraw, bot };
+const routes = { user, tasks, daily, ads, withdraw, bot, farm };
 app.all('/api/:name', async (req, res) => {
   const handler = routes[req.params.name];
   if (!handler) return res.status(404).json({ error: 'Not found' });
