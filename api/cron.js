@@ -6,6 +6,7 @@
 // - max 1 message per user per day (lastNotifiedDay), safe to call twice
 // - skips banned users, users who blocked the bot, and users who were active in the last 2 hours
 import { getDb } from '../lib/mongodb.js';
+import { ensureAllIndexes } from '../lib/indexes.js';
 import { isCronAuthorized } from '../lib/cronAuth.js';
 import { tgSend } from '../lib/tg.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
@@ -14,18 +15,18 @@ import { bdTodayKey } from '../lib/dateUtils.js';
 const APP_URL = 'https://ton-edge-play.vercel.app';
 const SKIP_IF_ACTIVE_WITHIN_HOURS = 2;
 const MESSAGES = [   // one is picked each day (rotates), so users don't see the same text every day
-  '🌾 <b>Your farm is waiting!</b>\n\nHarvest your crops, claim your daily reward and watch ads to earn MM$.',
-  '🎁 <b>Daily reward is ready!</b>\n\nOpen Gram Edge Farm, claim your free MM$ and plant a new crop.',
-  '🥕 <b>Your crops may be ready to harvest!</b>\n\nCome back, harvest and earn MM$ before you forget.',
-  '💰 <b>Earn MM$ today!</b>\n\nComplete tasks, watch ads and grow your farm. Every day counts!',
+  '🌾 <b>Your farm is waiting!</b>\n\nClaim your farm rewards, collect your login bonus and earn MM$.',
+  '🎁 <b>Daily reward is ready!</b>\n\nOpen Gram Edge Farm, collect your login bonus and claim your farms.',
+  '🥕 <b>Your farms may be ready to claim!</b>\n\nCome back, claim and earn MM$ before you forget.',
+  '💰 <b>Earn MM$ today!</b>\n\nComplete tasks and claim your farms. Every day counts!',
 ];
 // =====================
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 export default async function handler(req, res) {
   if (!isCronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+  if (req.query?.job === 'setupIndexes') return res.status(200).json({ ok: true, results: await ensureAllIndexes(await getDb()) }); // open in a browser to see which indexes are OK
   if (req.query?.job !== 'dailyNotify') return res.status(400).json({ ok: false, error: 'unknown_job' });
-  if (req.query?.dry === '1') return res.status(200).json({ ok: true, dry: true }); // safe connection test: sends NOTHING, uses no daily slot
 
   const db = await getDb();
   const today = bdTodayKey();
@@ -69,4 +70,4 @@ async function runNotify(db, today) {
   }
   await settings.updateOne({ _id: 'dailyNotify' }, { $set: { status: 'done', finishedAt: new Date(), sent, failed } });
   if (process.env.ADMIN_ID) tgSend(process.env.ADMIN_ID, `🔔 <b>Daily notification done</b>\n\n✅ Sent: <b>${sent}</b>\n❌ Failed: <b>${failed}</b>`).catch(() => {});
-}
+                         }
