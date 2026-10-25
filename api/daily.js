@@ -1,7 +1,10 @@
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
+import { bdTodayKey } from '../lib/dateUtils.js';
 
-const DAILY_REWARD = 15; // MM$
+// ===== EDIT HERE: login bonus (MM$ for day 1, 2, 3 ... then it starts again from day 1) =====
+const LOGIN_BONUS = [10, 20, 40, 70, 100, 150, 300];
+// ===========================================================================================
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -25,34 +28,27 @@ export default async function handler(req, res) {
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
 
-    // ── action: daily ─────────────────────────────────────────────
-    if (action === 'daily') {
-      const now = new Date();
-      const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    // ── action: login (daily login bonus, streak 10 → 300 MM$) ──────
+    // One claim per Bangladesh calendar day. Miss a day and the streak starts again from day 1.
+    if (action === 'login') {
+      if (user.accountLocked) return res.status(403).json({ error: 'account_locked' });
+      const today = bdTodayKey();
+      const yesterday = bdTodayKey(new Date(Date.now() - 86400000));
+      const lb = user.loginBonus || {};
+      if (lb.lastDay === today) return res.status(400).json({ error: 'Already claimed today. Come back tomorrow.' });
 
-      // Atomic: only succeeds if dailyClaimLast is missing or older than the
-      // cutoff. Previously this was read-then-write, so two claims fired
-      // close together could both pass the time check before either wrote,
-      // double-crediting the daily reward.
+      const day = lb.lastDay === yesterday ? ((lb.streak || 0) % LOGIN_BONUS.length) + 1 : 1;
+      const reward = LOGIN_BONUS[day - 1];
+
+      // Atomic: only one request per day can pass this filter, so a double tap cannot pay twice.
       const result = await users.findOneAndUpdate(
-        {
-          telegramId: String(telegramId),
-          $or: [
-            { dailyClaimLast: { $exists: false } },
-            { dailyClaimLast: null },
-            { dailyClaimLast: { $lte: cutoff } },
-          ],
-        },
-        { $inc: { egBalance: DAILY_REWARD }, $set: { dailyClaimLast: now } },
+        { telegramId: String(telegramId), 'loginBonus.lastDay': { $ne: today } },
+        { $inc: { egBalance: reward }, $set: { loginBonus: { lastDay: today, streak: day } } },
         { returnDocument: 'after' }
       );
       const updated = result?.value || result;
-      if (!updated) {
-        const last = new Date(user.dailyClaimLast);
-        const hours = Math.ceil(24 - (now - last) / 3600000);
-        return res.status(400).json({ error: `Already claimed. Come back in ${hours} hours.` });
-      }
-      return res.status(200).json({ success: true, reward: DAILY_REWARD });
+      if (!updated) return res.status(400).json({ error: 'Already claimed today. Come back tomorrow.' });
+      return res.status(200).json({ success: true, reward, day, loginBonus: { lastDay: today, streak: day }, balance: updated.egBalance });
     }
 
     // ── action: promo ─────────────────────────────────────────────
@@ -105,9 +101,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, reward: promo.reward, currency: 'mm' });
     }
 
-    return res.status(400).json({ error: 'Invalid action. Use: daily | promo' });
+    return res.status(400).json({ error: 'Invalid action. Use: login | promo' });
   } catch (err) {
     console.error('daily.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+                                       }
