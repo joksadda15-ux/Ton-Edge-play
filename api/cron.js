@@ -25,6 +25,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 export default async function handler(req, res) {
   if (!isCronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
   if (req.query?.job !== 'dailyNotify') return res.status(400).json({ ok: false, error: 'unknown_job' });
+  if (req.query?.dry === '1') return res.status(200).json({ ok: true, dry: true }); // safe connection test: sends NOTHING, uses no daily slot
 
   const db = await getDb();
   const today = bdTodayKey();
