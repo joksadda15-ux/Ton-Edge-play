@@ -1,4 +1,5 @@
 {
+  "//": "FILE PATH: package.json (repo root, index.html er pashe)",
   "name": "gram-edge-farm-api",
   "version": "1.0.0",
   "private": true,
@@ -8,10 +9,15 @@
     "start": "node server.js",
     "migrate": "node scripts/migrate-gold-to-mm.js"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "mongodb": "^6.3.0"
+    "mongodb": "^6.3.0",
+    "@ton/ton": "^15.1.0",
+    "@ton/crypto": "^3.3.0",
+    "@ton/core": ">=0.59.0 <1.0.0"
   }
 }
