@@ -3,6 +3,15 @@
 
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
+import { ObjectId } from 'mongodb';
+
+// Pagination (cursor style): the app asks for ONE small page at a time and gets a `nextCursor` back.
+//  - never skip(): "give me 20 after this one" uses the index and costs the same on page 1 or page 500
+//  - we fetch PAGE+1 rows only to learn if there is a next page, so no countDocuments() is needed
+//  - only the fields the screen needs are read (projection)
+const PAGE = 20;
+const REF_CURSOR = /^\d{10,14}_[a-f0-9]{24}$/;
+const ID_CURSOR = /^[a-f0-9]{24}$/;
 
 const BOT_LINK = 'http://t.me/TonEdge_play_bot/playearn';
 export default async function handler(req, res) {
@@ -33,14 +42,28 @@ export default async function handler(req, res) {
       const { type } = req.query;
 
       if (type === 'refer') {
-        const referredUsers = await users
-          .find({ referredBy: String(telegramId) })
-          .project({ firstName: 1, username: 1, createdAt: 1, completedTasks: 1, refBonusGenerated: 1, _id: 0 })
+        // newest first. cursor = "<createdAt ms>_<_id>" of the last row of the previous page
+        const q = { referredBy: String(telegramId) };
+        const after = String(req.query.after || '');
+        if (REF_CURSOR.test(after)) {
+          const [ms, oid] = after.split('_');
+          const c = new Date(Number(ms)), id = new ObjectId(oid);
+          q.$or = [{ createdAt: { $lt: c } }, { createdAt: c, _id: { $lt: id } }];
+        }
+        const rows = await users
+          .find(q)
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(PAGE + 1)
+          .project({ firstName: 1, username: 1, createdAt: 1, refBonusGenerated: 1, tasksDone: { $size: { $ifNull: ['$completedTasks', []] } } })
           .toArray();
+        const hasMore = rows.length > PAGE;
+        const pageRows = hasMore ? rows.slice(0, PAGE) : rows;
+        const last = pageRows[pageRows.length - 1];
+        const nextCursor = hasMore && last ? `${new Date(last.createdAt).getTime()}_${last._id}` : null;
 
-        const referredSummary = referredUsers.map(r => ({
+        const referredSummary = pageRows.map(r => ({
           firstName: r.firstName, username: r.username, createdAt: r.createdAt,
-          tasksDone: r.completedTasks?.length || 0,
+          tasksDone: r.tasksDone || 0,
           withdrawBonus: r.refBonusGenerated || 0,
         }));
 
@@ -52,18 +75,25 @@ export default async function handler(req, res) {
           totalRefEarned: user.totalRefEarned || 0,
           totalRefEarnedEG: user.totalRefEarnedEG || 0,
           referredUsers: referredSummary,
+          nextCursor,
           rewards: { perRefer: 250, withdrawBonusPct: 15 },
         });
       }
 
-      const allTasks = await tasksCol.find({ active: true }).toArray();
-      const completedIds = user.completedTasks || [];
-      const result = allTasks.map(t => ({
-        id: t.id, title: t.title, reward: t.reward,
-        link: t.link, type: t.type,
-        completed: completedIds.includes(t.id),
+      // newest tasks first, one page at a time. cursor = the _id of the last task of the previous page
+      const tq = { active: true };
+      const tAfter = String(req.query.after || '');
+      if (ID_CURSOR.test(tAfter)) tq._id = { $lt: new ObjectId(tAfter) };
+      const rows = await tasksCol.find(tq).sort({ _id: -1 }).limit(PAGE + 1)
+        .project({ id: 1, title: 1, reward: 1, link: 1, type: 1 }).toArray();
+      const hasMore = rows.length > PAGE;
+      const pageRows = hasMore ? rows.slice(0, PAGE) : rows;
+      const completed = new Set(user.completedTasks || []);
+      const result = pageRows.map(t => ({
+        id: t.id, title: t.title, reward: t.reward, link: t.link, type: t.type,
+        completed: completed.has(t.id),
       }));
-      return res.status(200).json({ success: true, tasks: result });
+      return res.status(200).json({ success: true, tasks: result, nextCursor: hasMore ? String(pageRows[pageRows.length - 1]._id) : null });
     }
 
     if (req.method === 'POST') {
@@ -109,4 +139,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-                                              }
+  }
