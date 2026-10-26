@@ -7,7 +7,7 @@
 // Payments are matched ON-CHAIN by the memo (comment). The only place an order flips pending -> paid is the cron.
 import { getDb } from '../lib/mongodb.js';
 import { ObjectId } from 'mongodb';
-import { tgSend } from '../lib/tg.js';
+import { tgSend, checkBotAdmin } from '../lib/tg.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { isCronAuthorized } from '../lib/cronAuth.js';
 import { TON_RECEIVE_ADDRESS, randomTonMemo, buildTonDeepLink, fetchRecentTonTransactions } from '../lib/tonPay.js';
@@ -39,13 +39,25 @@ function orderResponse(o) {
     address: TON_RECEIVE_ADDRESS, status: o.status, expiresAt: o.expiresAt, deepLink: buildTonDeepLink(o.amountNanoTon, o.memo) } };
 }
 
+// Two kinds of task (same as NEWTUBE):
+//   'link' = Mini App / website link. Users open it and wait; there is no way to prove they really used it.
+//   'api'  = Channel / Group join. Telegram itself proves the join, so the bot must be admin of that channel/group.
 function buildDraft(b) {
   const title = String(b.title || '').trim();
   if (!title) return { error: 'missing_fields' };
   if (title.length > MAX_TITLE) return { error: 'title_too_long' };
+  const verifyType = b.verifyType === 'api' ? 'api' : b.verifyType === 'link' ? 'link' : null;
+  if (!verifyType) return { error: 'missing_fields' };
+  if (verifyType === 'api') {
+    let name = String(b.channelUsername || '').trim().replace(/^@/, '');
+    const m = name.match(/t\.me\/([a-zA-Z0-9_]+)/);        // a pasted https://t.me/name link works too
+    if (m) name = m[1];
+    if (!/^[a-zA-Z0-9_]{4,}$/.test(name)) return { error: 'invalid_channel' };
+    return { draft: { title, verifyType, channelId: `@${name}`, url: `https://t.me/${name}` } };
+  }
   const url = String(b.url || '').trim();
   if (!/^https?:\/\/\S+$/i.test(url)) return { error: 'invalid_url' };
-  return { draft: { title, url } };
+  return { draft: { title, verifyType, channelId: null, url } };
 }
 
 export default async function handler(req, res) {
@@ -63,6 +75,15 @@ export default async function handler(req, res) {
     if (user.isBanned) return res.status(403).json({ ok: false, error: 'banned' });
     const orders = db.collection('taskCreateOrders');
 
+    // "Verify bot": is our bot an admin of that channel/group? (asked BEFORE paying, and again inside create)
+    if (req.method === 'POST' && src.action === 'verifyBot') {
+      const { draft, error } = buildDraft({ title: 'x', verifyType: 'api', channelUsername: src.channelUsername });
+      if (error) return res.status(400).json({ ok: false, error });
+      const chk = await checkBotAdmin(draft.channelId);
+      if (!chk.ok) return res.status(200).json({ ok: false, error: chk.error });
+      return res.status(200).json({ ok: true, channel: draft.channelId, title: chk.title });
+    }
+
     if (req.method === 'POST' && src.action === 'create') {
       if (!TON_RECEIVE_ADDRESS) return res.status(500).json({ ok: false, error: 'server_misconfigured' });
       if (user.accountLocked) return res.status(403).json({ ok: false, error: 'account_locked' });
@@ -70,6 +91,10 @@ export default async function handler(req, res) {
       if (!pkg) return res.status(400).json({ ok: false, error: 'invalid_package' });
       const { draft, error } = buildDraft(src);
       if (error) return res.status(400).json({ ok: false, error });
+      if (draft.verifyType === 'api') {            // nobody pays for a task that can never be verified
+        const chk = await checkBotAdmin(draft.channelId);
+        if (!chk.ok) return res.status(chk.error === 'server_error' ? 500 : 400).json({ ok: false, error: chk.error });
+      }
       const now = new Date();
       const existing = await orders.findOne({ userId: tgId, status: 'pending', expiresAt: { $gt: now } });
       if (existing) return res.status(200).json(orderResponse(existing));
@@ -102,7 +127,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET' && src.action === 'myTasks') {
       const list = await db.collection('tasks').find({ createdBy: tgId, isUserCreated: true })
-        .project({ _id: 0, title: 1, maxCompletions: 1, completedCount: 1, createdAt: 1, reviewStatus: 1, active: 1 })
+        .project({ _id: 0, title: 1, maxCompletions: 1, completedCount: 1, createdAt: 1, reviewStatus: 1, active: 1, verifyType: 1 })
         .sort({ createdAt: -1 }).limit(30).toArray();
       return res.status(200).json({ ok: true, tasks: list, packages: TASK_PACKAGES, reward: TASK_REWARD_MM });
     }
@@ -190,7 +215,8 @@ async function checkTaskCreate(db, txs, now) {
     if (!o) continue;
 
     const taskDoc = { id: 'task_' + Date.now() + '_' + String(o._id).slice(-4), title: o.draft.title, link: o.draft.url, reward: TASK_REWARD_MM,
-      maxCompletions: o.taskCount, completedCount: 0, type: 'link', active: false, reviewStatus: 'pending_review',
+      maxCompletions: o.taskCount, completedCount: 0, type: o.draft.verifyType || 'link', category: 'exclusive', verifyType: o.draft.verifyType || 'link', channelId: o.draft.channelId || null,
+      active: false, reviewStatus: 'pending_review',
       isUserCreated: true, createdBy: o.userId, createdAt: now };
     const ins = await tasks.insertOne(taskDoc);
     await orders.updateOne({ _id: o._id }, { $set: { createdTaskId: ins.insertedId } });
@@ -199,4 +225,4 @@ async function checkTaskCreate(db, txs, now) {
     if (ADMIN_ID) tgSend(ADMIN_ID, `🆕 <b>New Task Waiting for Review</b>\n\n📋 ${esc(taskDoc.title)}\n🔗 ${esc(taskDoc.link)}\n👥 ${taskDoc.maxCompletions} slots · 💰 ${TASK_REWARD_MM} MM$/person\n\nOpen "🕐 Pending Review" in the admin panel.`).catch(() => {});
   }
   return { expired: expired.modifiedCount, matched, flagged };
-}
+                             }
