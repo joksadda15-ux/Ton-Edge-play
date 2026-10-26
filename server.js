@@ -14,6 +14,7 @@ import bot from './api/bot.js';
 import farm from './api/farm.js';
 import payments from './api/payments.js';
 import cron from './api/cron.js';
+import logo from './api/logo.js';
 
 const app = express();
 app.set('trust proxy', true); // so x-forwarded-for / IP checks work behind the host's proxy
@@ -34,7 +35,7 @@ app.use(cors({
 // Health check — also use this URL for the free uptime pinger (keeps the server awake).
 app.get('/health', (_req, res) => res.json({ ok: true, t: Date.now() }));
 
-const routes = { user, tasks, daily, ads, withdraw, bot, farm, payments, cron };
+const routes = { user, tasks, daily, ads, withdraw, bot, farm, payments, cron, logo };
 app.all('/api/:name', async (req, res) => {
   const handler = routes[req.params.name];
   if (!handler) return res.status(404).json({ error: 'Not found' });
