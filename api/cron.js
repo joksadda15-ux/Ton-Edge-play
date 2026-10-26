@@ -70,4 +70,4 @@ async function runNotify(db, today) {
   }
   await settings.updateOne({ _id: 'dailyNotify' }, { $set: { status: 'done', finishedAt: new Date(), sent, failed } });
   if (process.env.ADMIN_ID) tgSend(process.env.ADMIN_ID, `🔔 <b>Daily notification done</b>\n\n✅ Sent: <b>${sent}</b>\n❌ Failed: <b>${failed}</b>`).catch(() => {});
-                         }
+                                 }
