@@ -12,6 +12,7 @@
 
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
+import { checkReferralVelocity, alertIpSignupVelocity } from '../lib/velocity.js';
 import { getClientIp, checkDevice, claimDevice, claimDeviceForUser, getOwnerPublicInfo, registryKey, recordSignupAndCheckVelocity, IP_SIGNUP_VELOCITY_THRESHOLD } from '../lib/ipRegistry.js';
 import { checkAndRecordFingerprint } from '../lib/fingerprintCheck.js';
 import { isRegistryBanned } from '../lib/banRegistry.js';
@@ -103,9 +104,23 @@ export default async function handler(req, res) {
       }
 
       const tgId = String(telegramId);
-      const existing = await users.findOne({ telegramId: tgId });
-
       const clientIp = getClientIp(req);
+      // One request does both jobs (the app used to call ipcheck first, then this): load the user and run the device check together.
+      const [existing, chk] = await Promise.all([
+        users.findOne({ telegramId: tgId }),
+        checkDevice(db, fp, clientIp, tgId),
+      ]);
+      if (chk.fallbackCollision && existing) await users.updateOne({ telegramId: tgId }, { $set: { ipFallbackFlag: true } });
+      if (chk.blocked) {
+        // another account owns this device: do NOT create/open anything (also means no referral reward for a blocked sign-up)
+        const owner = await getOwnerPublicInfo(db, chk.ownerId);
+        return res.status(200).json({
+          success: true, conflict: true, owner,
+          switchesLeft: Math.max(0, MAX_IP_SWITCHES - (existing?.ipSwitchCount || 0)),
+        });
+      }
+      if (existing && chk.unclaimed) await claimDevice(db, chk.key, tgId);
+
       if (existing) {
         checkAndRecordFingerprint(db, tgId, fp).catch(() => {}); // soft multi-account flag (admin review only)
         const updated = await users.findOneAndUpdate(
@@ -152,15 +167,20 @@ export default async function handler(req, res) {
       if (ipSignups >= IP_SIGNUP_VELOCITY_THRESHOLD) {
         newUser.accountLocked = true; newUser.accountLockedAt = new Date(); newUser.accountLockedReason = 'ip_signup_velocity';
       }
+      alertIpSignupVelocity(clientIp, ipSignups, tgId); // tells the admin (first time + every 10th)
 
       if (referCode) {
         const referrer = await users.findOne({ referCode });
         if (referrer && referrer.telegramId !== tgId) {
           newUser.referredBy = referrer.telegramId;
-          await users.updateOne(
+          // also remember WHEN each signup happened (last 50) so referral velocity can be measured
+          const after = await users.findOneAndUpdate(
             { telegramId: referrer.telegramId },
-            { $inc: { egBalance: REFER_REWARD_MM, totalRefEarnedEG: REFER_REWARD_MM, totalReferred: 1 } }
+            { $inc: { egBalance: REFER_REWARD_MM, totalRefEarnedEG: REFER_REWARD_MM, totalReferred: 1 },
+              $push: { recentReferralSignups: { $each: [new Date()], $slice: -50 } } },
+            { returnDocument: 'after' }
           );
+          checkReferralVelocity(db, after?.value !== undefined ? after.value : after).catch(() => {}); // alert-only, never blocks the signup
         }
       }
 
