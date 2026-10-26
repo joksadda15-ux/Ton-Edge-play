@@ -1,142 +1,199 @@
-// FILE PATH: api/tasks.js
-// (GitHub repo te ei path e file ta rakhbe: api/tasks.js)
+// FILE PATH: api/user.js
+// (GitHub repo te ei path e file ta rakhbe: api/user.js)
+//
+// Handles /api/user (register / fetch / heartbeat) plus small
+// action-routed extras that used to be their own files:
+//   ?action=ipcheck    — GET,  was api/ipcheck.js
+//   ?action=ipswitch   — POST, was the POST branch of api/ipcheck.js
+// Merged in because Vercel's free (Hobby) plan caps a project at 12
+// serverless functions total — every file under /api counts as one,
+// so folding related small endpoints into the file they're closest to
+// keeps headroom for future features instead of burning a slot each time.
 
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
-import { ObjectId } from 'mongodb';
+import { checkReferralVelocity, alertIpSignupVelocity } from '../lib/velocity.js';
+import { getClientIp, checkDevice, claimDevice, claimDeviceForUser, getOwnerPublicInfo, registryKey, recordSignupAndCheckVelocity, IP_SIGNUP_VELOCITY_THRESHOLD } from '../lib/ipRegistry.js';
+import { checkAndRecordFingerprint } from '../lib/fingerprintCheck.js';
+import { isRegistryBanned } from '../lib/banRegistry.js';
 
-// Pagination (cursor style): the app asks for ONE small page at a time and gets a `nextCursor` back.
-//  - never skip(): "give me 20 after this one" uses the index and costs the same on page 1 or page 500
-//  - we fetch PAGE+1 rows only to learn if there is a next page, so no countDocuments() is needed
-//  - only the fields the screen needs are read (projection)
-const PAGE = 20;
-const REF_CURSOR = /^\d{10,14}_[a-f0-9]{24}$/;
-const ID_CURSOR = /^[a-f0-9]{24}$/;
+const MAX_IP_SWITCHES = 2;
 
-const BOT_LINK = 'http://t.me/TonEdge_play_bot/playearn';
+// Referral: referrer gets this many MM$ the moment a friend joins via their link.
+const REFER_REWARD_MM = 250;
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const telegramId = req.query.telegramId || req.body?.telegramId;
-  const initData = req.query.initData || req.body?.initData;
-
-  if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
-
-  // initData is now REQUIRED — previously optional, letting anyone read/claim
-  // for any telegramId with no proof of identity.
-  const tgUser = verifyTelegramInit(initData);
-  if (!tgUser || String(tgUser.id) !== String(telegramId)) {
-    return res.status(403).json({ error: 'Invalid Telegram session' });
-  }
+  const action = req.query?.action || req.body?.action;
 
   try {
     const db = await getDb();
     const users = db.collection('users');
-    const tasksCol = db.collection('tasks');
 
-    const user = await users.findOne({ telegramId: String(telegramId) });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
+    // ── GET /api/user?action=ipcheck  (one account per DEVICE; fingerprint `fp`, IP only as soft fallback) ──
+    if (req.method === 'GET' && action === 'ipcheck') {
+      const { telegramId, fp = '' } = req.query;
+      const initData = req.query.initData || '';
+      if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+      const tgUser = verifyTelegramInit(initData);
+      if (!tgUser || String(tgUser.id) !== String(telegramId)) return res.status(403).json({ error: 'Invalid Telegram session' });
 
-    if (req.method === 'GET') {
-      const { type } = req.query;
-
-      if (type === 'refer') {
-        // newest first. cursor = "<createdAt ms>_<_id>" of the last row of the previous page
-        const q = { referredBy: String(telegramId) };
-        const after = String(req.query.after || '');
-        if (REF_CURSOR.test(after)) {
-          const [ms, oid] = after.split('_');
-          const c = new Date(Number(ms)), id = new ObjectId(oid);
-          q.$or = [{ createdAt: { $lt: c } }, { createdAt: c, _id: { $lt: id } }];
-        }
-        const rows = await users
-          .find(q)
-          .sort({ createdAt: -1, _id: -1 })
-          .limit(PAGE + 1)
-          .project({ firstName: 1, username: 1, createdAt: 1, refBonusGenerated: 1, tasksDone: { $size: { $ifNull: ['$completedTasks', []] } } })
-          .toArray();
-        const hasMore = rows.length > PAGE;
-        const pageRows = hasMore ? rows.slice(0, PAGE) : rows;
-        const last = pageRows[pageRows.length - 1];
-        const nextCursor = hasMore && last ? `${new Date(last.createdAt).getTime()}_${last._id}` : null;
-
-        const referredSummary = pageRows.map(r => ({
-          firstName: r.firstName, username: r.username, createdAt: r.createdAt,
-          tasksDone: r.tasksDone || 0,
-          withdrawBonus: r.refBonusGenerated || 0,
-        }));
-
-        return res.status(200).json({
-          success: true,
-          referCode: user.referCode,
-          referLink: `${BOT_LINK}?startapp=${user.referCode}`,
-          totalReferred: user.totalReferred || 0,
-          totalRefEarned: user.totalRefEarned || 0,
-          totalRefEarnedEG: user.totalRefEarnedEG || 0,
-          referredUsers: referredSummary,
-          nextCursor,
-          rewards: { perRefer: 250, withdrawBonusPct: 15 },
-        });
+      const tgId = String(telegramId);
+      const chk = await checkDevice(db, fp, getClientIp(req), tgId);
+      if (chk.fallbackCollision) await users.updateOne({ telegramId: tgId }, { $set: { ipFallbackFlag: true } });
+      if (!chk.blocked) {
+        if (chk.unclaimed && await users.findOne({ telegramId: tgId }, { projection: { _id: 1 } })) await claimDevice(db, chk.key, tgId);
+        return res.status(200).json({ success: true, conflict: false });
       }
-
-      // newest tasks first, one page at a time. cursor = the _id of the last task of the previous page
-      const tq = { active: true };
-      const tAfter = String(req.query.after || '');
-      if (ID_CURSOR.test(tAfter)) tq._id = { $lt: new ObjectId(tAfter) };
-      const rows = await tasksCol.find(tq).sort({ _id: -1 }).limit(PAGE + 1)
-        .project({ id: 1, title: 1, reward: 1, link: 1, type: 1 }).toArray();
-      const hasMore = rows.length > PAGE;
-      const pageRows = hasMore ? rows.slice(0, PAGE) : rows;
-      const completed = new Set(user.completedTasks || []);
-      const result = pageRows.map(t => ({
-        id: t.id, title: t.title, reward: t.reward, link: t.link, type: t.type,
-        completed: completed.has(t.id),
-      }));
-      return res.status(200).json({ success: true, tasks: result, nextCursor: hasMore ? String(pageRows[pageRows.length - 1]._id) : null });
+      const owner = await getOwnerPublicInfo(db, chk.ownerId);
+      const me = await users.findOne({ telegramId: tgId }, { projection: { ipSwitchCount: 1 } });
+      return res.status(200).json({ success: true, conflict: true, owner, switchesLeft: Math.max(0, MAX_IP_SWITCHES - (me?.ipSwitchCount || 0)) });
     }
 
-    if (req.method === 'POST') {
-      const { taskId } = req.body;
-      if (!taskId) return res.status(400).json({ error: 'taskId required' });
+    // ── POST /api/user  {action:'ipswitch'} ────────────────────
+    if (req.method === 'POST' && action === 'ipswitch') {
+      const { telegramId, initData, fp = '' } = req.body;
+      if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+      const tgUser = verifyTelegramInit(initData);
+      if (!tgUser || String(tgUser.id) !== String(telegramId)) return res.status(403).json({ error: 'Invalid Telegram session' });
+      const tgId = String(telegramId);
+      const ip = getClientIp(req);
+      const key = registryKey(fp, ip);
+      if (!key) return res.status(400).json({ error: 'Could not determine your device.' });
 
-      const task = await tasksCol.findOne({ id: taskId, active: true });
-      if (!task) return res.status(404).json({ error: 'Task not found' });
+      const user = await users.findOne({ telegramId: tgId });
+      const used = user?.ipSwitchCount || 0;
+      if (used >= MAX_IP_SWITCHES) return res.status(403).json({ error: 'No account switches remaining for this account.' });
+      const chk = await checkDevice(db, fp, ip, tgId);
+      if (!chk.blocked) return res.status(200).json({ success: true, alreadyOwner: true });
 
-      if (user.accountLocked) return res.status(403).json({ error: 'Account under review.' });
+      const r = await claimDeviceForUser(db, key, tgId);
+      if (!r.ok) return res.status(429).json({ error: `This device was switched recently. Try again in ${Math.ceil(r.retryAfterMs / 3600000)}h.` });
+      if (user) await users.updateOne({ telegramId: tgId }, { $inc: { ipSwitchCount: 1 } });
+      return res.status(200).json({ success: true, switchesLeft: Math.max(0, MAX_IP_SWITCHES - (used + 1)) });
+    }
 
-      // Reserve one of the task's limited slots first (user-created tasks are capped by what the creator paid for).
-      const slotRes = task.maxCompletions
-        ? await tasksCol.findOneAndUpdate(
-            { id: taskId, active: true, $expr: { $lt: [{ $ifNull: ['$completedCount', 0] }, '$maxCompletions'] } },
-            { $inc: { completedCount: 1 } }, { returnDocument: 'after' })
-        : await tasksCol.findOneAndUpdate({ id: taskId, active: true }, { $inc: { completedCount: 1 } }, { returnDocument: 'after' });
-      const slot = slotRes?.value !== undefined ? slotRes.value : slotRes;
-      if (!slot) return res.status(400).json({ error: 'Task is full or no longer available.' });
-      if (slot.maxCompletions && slot.completedCount >= slot.maxCompletions)
-        await tasksCol.updateOne({ id: taskId }, { $set: { active: false, completedAt: new Date() } });
+    // ── GET /api/user?telegramId=xxx ───────────────────────────
+    if (req.method === 'GET') {
+      const { telegramId, initData } = req.query;
+      if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
-      // Atomic claim: only succeeds if this task isn't already in
-      // completedTasks. Previously this was a separate read-then-write,
-      // so two simultaneous claims for the same task could both succeed
-      // and double-credit the reward.
-      const result = await users.findOneAndUpdate(
-        { telegramId: String(telegramId), completedTasks: { $ne: taskId } },
-        { $inc: { egBalance: task.reward }, $push: { completedTasks: taskId } },
-        { returnDocument: 'after' }
-      );
-      const updated = result?.value || result;
-      if (!updated) {
-        await tasksCol.updateOne({ id: taskId }, { $inc: { completedCount: -1 }, $set: { active: true }, $unset: { completedAt: '' } }); // give the slot back
-        return res.status(400).json({ error: 'Task already completed.' });
+      const tgUser = verifyTelegramInit(initData);
+      if (!tgUser || String(tgUser.id) !== String(telegramId)) {
+        return res.status(403).json({ error: 'Invalid Telegram session' });
       }
 
-      return res.status(200).json({ success: true, reward: task.reward });
+      const user = await users.findOne(
+        { telegramId: String(telegramId) },
+        { projection: { _id: 0 } }
+      );
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      return res.status(200).json({ success: true, user });
+    }
+
+    // ── POST /api/user  (register / app-open heartbeat) ───────────
+    if (req.method === 'POST') {
+      const { telegramId, username, firstName, referCode, initData, fp = '' } = req.body;
+
+      if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
+
+      const tgUser = verifyTelegramInit(initData);
+      if (!tgUser || String(tgUser.id) !== String(telegramId)) {
+        return res.status(403).json({ error: 'Invalid Telegram session' });
+      }
+
+      const tgId = String(telegramId);
+      const clientIp = getClientIp(req);
+      // One request does both jobs (the app used to call ipcheck first, then this): load the user and run the device check together.
+      const [existing, chk] = await Promise.all([
+        users.findOne({ telegramId: tgId }),
+        checkDevice(db, fp, clientIp, tgId),
+      ]);
+      if (chk.fallbackCollision && existing) await users.updateOne({ telegramId: tgId }, { $set: { ipFallbackFlag: true } });
+      if (chk.blocked) {
+        // another account owns this device: do NOT create/open anything (also means no referral reward for a blocked sign-up)
+        const owner = await getOwnerPublicInfo(db, chk.ownerId);
+        return res.status(200).json({
+          success: true, conflict: true, owner,
+          switchesLeft: Math.max(0, MAX_IP_SWITCHES - (existing?.ipSwitchCount || 0)),
+        });
+      }
+      if (existing && chk.unclaimed) await claimDevice(db, chk.key, tgId);
+
+      if (existing) {
+        checkAndRecordFingerprint(db, tgId, fp).catch(() => {}); // soft multi-account flag (admin review only)
+        const updated = await users.findOneAndUpdate(
+          { telegramId: tgId },
+          { $set: { lastActive: new Date() }, $inc: { appOpens: 1 } },
+          { returnDocument: 'after' }
+        );
+        const userDoc = updated?.value || updated;
+        return res.status(200).json({ success: true, user: userDoc, isNew: false });
+      }
+
+      // permanently banned Telegram IDs can never open a fresh account
+      if (await isRegistryBanned(db, tgId)) return res.status(403).json({ error: 'Account banned' });
+
+      const myReferCode =
+        'TEP' + tgId.slice(-5) + Math.random().toString(36).slice(2, 5).toUpperCase();
+
+      const newUser = {
+        telegramId: tgId,
+        username: username || '',
+        firstName: firstName || 'User',
+        egBalance: 0,
+        referCode: myReferCode,
+        referredBy: null,
+        totalReferred: 0,
+        totalRefEarned: 0,
+        totalRefEarnedEG: 0,
+        dailyClaimLast: null,
+        adTasks: {},
+        totalAdsWatched: 0,
+        completedTasks: [],
+        promosUsed: [],
+        isBanned: false,
+        appOpens: 1,
+        withdrawPending: false,
+        ipSwitchCount: 0,
+        signupIp: clientIp,
+        createdAt: new Date(),
+        lastActive: new Date(),
+      };
+
+      // bot-farm guard: many NEW accounts from one IP in minutes -> locked (no withdraw / ad rewards) until admin reviews
+      const { count: ipSignups } = await recordSignupAndCheckVelocity(db, clientIp);
+      if (ipSignups >= IP_SIGNUP_VELOCITY_THRESHOLD) {
+        newUser.accountLocked = true; newUser.accountLockedAt = new Date(); newUser.accountLockedReason = 'ip_signup_velocity';
+      }
+      alertIpSignupVelocity(clientIp, ipSignups, tgId); // tells the admin (first time + every 10th)
+
+      if (referCode) {
+        const referrer = await users.findOne({ referCode });
+        if (referrer && referrer.telegramId !== tgId) {
+          newUser.referredBy = referrer.telegramId;
+          // also remember WHEN each signup happened (last 50) so referral velocity can be measured
+          const after = await users.findOneAndUpdate(
+            { telegramId: referrer.telegramId },
+            { $inc: { egBalance: REFER_REWARD_MM, totalRefEarnedEG: REFER_REWARD_MM, totalReferred: 1 },
+              $push: { recentReferralSignups: { $each: [new Date()], $slice: -50 } } },
+            { returnDocument: 'after' }
+          );
+          checkReferralVelocity(db, after?.value !== undefined ? after.value : after).catch(() => {}); // alert-only, never blocks the signup
+        }
+      }
+
+      await users.insertOne(newUser);
+      const devKey = registryKey(fp, clientIp);
+      if (devKey && !devKey.startsWith('ip:')) { const c = await checkDevice(db, fp, clientIp, tgId); if (c.unclaimed) await claimDevice(db, devKey, tgId); }
+      checkAndRecordFingerprint(db, tgId, fp).catch(() => {});
+      return res.status(200).json({ success: true, user: newUser, isNew: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error('tasks.js error:', err);
+    console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-  }
+          }
