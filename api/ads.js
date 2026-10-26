@@ -21,10 +21,57 @@ const signStart = (tgId, network, t) =>
 const AD_NETWORKS = {
   gigapub:       { label: 'GigaPub Ads',        limit: 5,  reward: 10 },
   adsgram_init:  { label: 'AdsGram Ads',        limit: 5,  reward: 10 },
+
+  // ===== Tasks → Daily ads (EDIT HERE: limit = times per day, reward = MM$ per ad) =====
+  // Adsgram Task block (task-56002): user completes an Adsgram task, no video view time needed.
+  daily_adsgram_task: { label: 'Adsgram Task', limit: 10, reward: 40, minWatch: 3, noView: true, tokenMaxAge: 1800, s2s: true },
+  // GigaPub rewarded ad
+  daily_gigapub:      { label: 'GigaPub Ad',   limit: 10, reward: 20 },
+  // Adsgram rewarded video (block id 37275)
+  daily_adsgram:      { label: 'Adsgram Ad',   limit: 10, reward: 20, s2s: true },
+  // =====================================================================================
 };
+
+
+// ===== ADSGRAM S2S (server-to-server reward confirmation) =====
+// Adsgram calls  GET /api/ads?s2s=1&network=<network>&userid=[userId]&secret=<ADSGRAM_S2S_SECRET>  after a user finishes an ad.
+// We store one "credit". The app can only be paid for an Adsgram ad when a fresh credit from Adsgram exists for that user.
+// Env (Render):  ADSGRAM_S2S_SECRET = any long random text (also written inside the Reward URL in the Adsgram dashboard)
+//                ADSGRAM_S2S_OFF    = optional, comma list of networks to NOT enforce, e.g. daily_adsgram_task
+const safeEq = (a, b) => {
+  const x = crypto.createHash('sha256').update(String(a)).digest();
+  const y = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(x, y);
+};
+const s2sEnforced = (network, cfg) =>
+  !!(cfg.s2s && process.env.ADSGRAM_S2S_SECRET &&
+     !String(process.env.ADSGRAM_S2S_OFF || '').split(',').map(v => v.trim()).includes(network));
+let s2sIndexDone = false;
+async function handleS2S(req, res) {
+  const secret = process.env.ADSGRAM_S2S_SECRET;
+  if (!secret) return res.status(503).json({ error: 's2s_not_configured' });
+  if (!safeEq(req.query.secret || '', secret)) return res.status(403).json({ error: 'forbidden' });
+  const network = String(req.query.network || '');
+  const cfg = AD_NETWORKS[network];
+  if (!cfg || !cfg.s2s) return res.status(400).json({ error: 'invalid_network' });
+  const userid = String(req.query.userid || '');
+  if (!/^\d{3,15}$/.test(userid)) return res.status(400).json({ error: 'invalid_userid' });
+  const db = await getDb();
+  const col = db.collection('adsgramS2S');
+  if (!s2sIndexDone) { s2sIndexDone = true; col.createIndex({ at: 1 }, { expireAfterSeconds: 86400 }).catch(() => {}); } // credits auto-delete after 1 day
+  const open = await col.countDocuments({ telegramId: userid, network, used: false });
+  if (open >= 20) return res.status(200).json({ ok: true, ignored: true });
+  await col.insertOne({ telegramId: userid, network, used: false, at: new Date() });
+  return res.status(200).json({ ok: true });
+}
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (req.method === 'GET' && req.query?.s2s) {
+    try { return await handleS2S(req, res); }
+    catch (err) { console.error('ads s2s error:', err); return res.status(500).json({ error: 'Server error' }); }
+  }
 
   const telegramId = req.query?.telegramId || req.body?.telegramId;
   const initData   = req.query?.initData   || req.body?.initData || '';
@@ -77,18 +124,37 @@ export default async function handler(req, res) {
     if (signStart(tgId, network, startNum) !== signature) return res.status(400).json({ error: 'invalid_ad_token' });
     const elapsed = (Date.now() - startNum) / 1000;
     if (!(elapsed >= 0)) return res.status(400).json({ error: 'invalid_ad_token' });
-    if (elapsed > TOKEN_MAX_AGE_SECONDS) return res.status(400).json({ error: 'ad_token_expired' });
-    if (elapsed < MIN_WATCH_SECONDS) return res.status(400).json({ error: 'watch_time_too_short' });
+    const maxAge = cfg.tokenMaxAge || TOKEN_MAX_AGE_SECONDS;
+    const minWatch = cfg.minWatch || MIN_WATCH_SECONDS;
+    if (elapsed > maxAge) return res.status(400).json({ error: 'ad_token_expired' });
+    if (elapsed < minWatch) return res.status(400).json({ error: 'watch_time_too_short' });
     const view = Number(viewMs) / 1000;
-    if (!Number.isFinite(view) || view < MIN_WATCH_SECONDS) return res.status(400).json({ error: 'watch_time_too_short' });
-    if (view > elapsed + VIEW_TOLERANCE_SECONDS) return res.status(400).json({ error: 'invalid_view_time' });
+    if (!cfg.noView) {
+      if (!Number.isFinite(view) || view < MIN_WATCH_SECONDS) return res.status(400).json({ error: 'watch_time_too_short' });
+      if (view > elapsed + VIEW_TOLERANCE_SECONDS) return res.status(400).json({ error: 'invalid_view_time' });
+    }
     if (user.lastAdClaimAt && Date.now() - new Date(user.lastAdClaimAt).getTime() < COOLDOWN_SECONDS * 1000)
       return res.status(400).json({ error: 'ad_cooldown' });
 
-    const sample = { s: startNum, c: Date.now(), w: Math.round(elapsed * 10) / 10, v: Math.round(view * 10) / 10 };
-    const hit = detectBotPattern([...(user.recentAdClaims || []), sample]);
-    if (hit && await lockForBotPattern(db, tgId, hit, `Network: ${network}`, [...(user.recentAdClaims || []), sample]))
-      return res.status(403).json({ error: 'account_locked' });
+    const sample = { s: startNum, c: Date.now(), w: Math.round(elapsed * 10) / 10, v: Math.round((cfg.noView ? elapsed : view) * 10) / 10 };
+    if (!cfg.noView) {
+      const hit = detectBotPattern([...(user.recentAdClaims || []), sample]);
+      if (hit && await lockForBotPattern(db, tgId, hit, `Network: ${network}`, [...(user.recentAdClaims || []), sample]))
+        return res.status(403).json({ error: 'account_locked' });
+    }
+
+    // Adsgram S2S: only pay when Adsgram's own server confirmed this ad (credit created by handleS2S). Reserve it atomically.
+    let credit = null;
+    if (s2sEnforced(network, cfg)) {
+      const r = await db.collection('adsgramS2S').findOneAndUpdate(
+        { telegramId: tgId, network, used: false, at: { $gte: new Date(startNum - 3000) } },
+        { $set: { used: true, usedAt: new Date() } },
+        { sort: { at: 1 } }
+      );
+      credit = r?.value || r;
+      if (!credit || !credit._id) return res.status(409).json({ error: 's2s_pending' }); // callback not here yet — app retries
+    }
+    const releaseCredit = () => credit ? db.collection('adsgramS2S').updateOne({ _id: credit._id }, { $set: { used: false } }).catch(() => {}) : null;
 
     const path = `adTasks.${today}.${network}`;
 
@@ -105,12 +171,13 @@ export default async function handler(req, res) {
       {
         $inc: { egBalance: cfg.reward, [path]: 1, totalAdsWatched: 1 },
         $set: { lastAdClaimAt: new Date(), lastAdStartUsed: startNum },
-        $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP } },
+        ...(cfg.noView ? {} : { $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP } } }),
       },
       { returnDocument: 'after' }
     );
     const updated = result?.value || result;
     if (!updated) {
+      await releaseCredit();
       return res.status(400).json({ error: `Daily limit reached for ${cfg.label}` });
     }
     const watched = updated.adTasks?.[today]?.[network] || 0;
@@ -133,4 +200,4 @@ export default async function handler(req, res) {
     console.error('ads.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-                                  }
+      }
