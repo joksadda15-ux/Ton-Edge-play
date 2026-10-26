@@ -126,10 +126,19 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'GET' && src.action === 'myTasks') {
-      const list = await db.collection('tasks').find({ createdBy: tgId, isUserCreated: true })
-        .project({ _id: 0, title: 1, maxCompletions: 1, completedCount: 1, createdAt: 1, reviewStatus: 1, active: 1, verifyType: 1 })
-        .sort({ createdAt: -1 }).limit(30).toArray();
-      return res.status(200).json({ ok: true, tasks: list, packages: TASK_PACKAGES, reward: TASK_REWARD_MM });
+      // cursor pagination (newest first): `after` = _id of the last task of the previous page
+      const MY_PAGE = 10;
+      const q = { createdBy: tgId, isUserCreated: true };
+      const after = String(src.after || '');
+      if (/^[a-f0-9]{24}$/.test(after)) q._id = { $lt: new ObjectId(after) };
+      const rows = await db.collection('tasks').find(q)
+        .project({ title: 1, maxCompletions: 1, completedCount: 1, createdAt: 1, reviewStatus: 1, active: 1, verifyType: 1 })
+        .sort({ _id: -1 }).limit(MY_PAGE + 1).toArray();
+      const hasMore = rows.length > MY_PAGE;
+      const page = hasMore ? rows.slice(0, MY_PAGE) : rows;
+      const nextCursor = hasMore ? String(page[page.length - 1]._id) : null;
+      const list = page.map(({ _id, ...t }) => t);
+      return res.status(200).json({ ok: true, tasks: list, nextCursor, packages: TASK_PACKAGES, reward: TASK_REWARD_MM });
     }
     if (req.method === 'GET' && src.action === 'packages') {
       return res.status(200).json({ ok: true, packages: TASK_PACKAGES, reward: TASK_REWARD_MM });
@@ -225,4 +234,4 @@ async function checkTaskCreate(db, txs, now) {
     if (ADMIN_ID) tgSend(ADMIN_ID, `🆕 <b>New Task Waiting for Review</b>\n\n📋 ${esc(taskDoc.title)}\n🔗 ${esc(taskDoc.link)}\n👥 ${taskDoc.maxCompletions} slots · 💰 ${TASK_REWARD_MM} MM$/person\n\nOpen "🕐 Pending Review" in the admin panel.`).catch(() => {});
   }
   return { expired: expired.modifiedCount, matched, flagged };
-                             }
+      }
