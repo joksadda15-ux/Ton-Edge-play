@@ -7,6 +7,7 @@ import { ObjectId } from 'mongodb';
 import crypto from 'crypto';
 import { isMember } from '../lib/tg.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
+import { refCheck, MILESTONES } from '../lib/refReward.js';
 
 // Pagination (cursor style): the app asks for ONE small page at a time and gets a `nextCursor` back.
 //  - never skip(): "give me 20 after this one" uses the index and costs the same on page 1 or page 500
@@ -82,7 +83,9 @@ export default async function handler(req, res) {
           totalRefEarnedEG: user.totalRefEarnedEG || 0,
           referredUsers: referredSummary,
           nextCursor,
-          rewards: { perRefer: 250, withdrawBonusPct: 15 },
+          activeReferrals: user.activeReferrals || 0,
+          refMsPaid: user.refMsPaid || 0,
+          milestones: MILESTONES,
         });
       }
 
@@ -169,8 +172,8 @@ export default async function handler(req, res) {
           ? { telegramId: String(telegramId), [`dailyDone.${taskId}`]: { $ne: today }, ...tokOk }
           : { telegramId: String(telegramId), completedTasks: { $ne: taskId }, ...tokOk },
         isDaily
-          ? { $inc: { egBalance: task.reward }, $set: { [`dailyDone.${taskId}`]: today, ...tokSet } }
-          : { $inc: { egBalance: task.reward }, $set: tokSet, $push: { completedTasks: taskId } },
+          ? { $inc: { egBalance: task.reward, tasksDoneTotal: 1 }, $set: { [`dailyDone.${taskId}`]: today, ...tokSet } }
+          : { $inc: { egBalance: task.reward, tasksDoneTotal: 1 }, $set: tokSet, $push: { completedTasks: taskId } },
         { returnDocument: 'after' }
       );
       const updated = result?.value || result;
@@ -179,6 +182,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Task already completed.' });
       }
 
+      await refCheck(db, updated); // referral milestone: friend finished 10 tasks
       return res.status(200).json({ success: true, reward: task.reward, balance: updated.egBalance });
     }
 
@@ -187,4 +191,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-                  }
+                                  }
