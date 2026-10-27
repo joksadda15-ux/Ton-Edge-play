@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
+import { refCheck } from '../lib/refReward.js';
 import { detectBotPattern, lockForBotPattern, AD_CLAIM_HISTORY_KEEP } from '../lib/botGuard.js';
 
 // ===== EDIT HERE: farm settings (50,000 MM$ = $1) =====
@@ -18,8 +19,6 @@ const FARMS = [
   { name: 'Farm 6', hours: 12, reward: 500, price: 12500 },
 ];
 const AD_NETWORKS = ['adsgram_block', 'gigapub', 'adsgram_init'];
-// Referral: the referrer gets this when the friend finishes their FIRST farm claim (keep same as api/user.js)
-const REFER_REWARD_MM = 250;
 // AdsGram block ad = S2S: paid only after AdsGram's own server confirmed the ad (credit saved by api/ads.js, network 'daily_adsgram')
 const S2S_NETWORK = 'daily_adsgram';
 const s2sOn = (network) => network === 'adsgram_block' && !!process.env.ADSGRAM_S2S_SECRET;
@@ -99,6 +98,7 @@ export default async function handler(req, res) {
     );
     if (!r.modifiedCount) return res.status(400).json({ error: 'Not enough MM$ (or already bought)' });
     user = await users.findOne({ telegramId: tgId });
+    await refCheck(db, user); // referral milestone: friend unlocked 5 farms
     return res.status(200).json({ success: true, balance: user.egBalance, farm: view(user.farm2) });
   }
 
@@ -168,7 +168,7 @@ export default async function handler(req, res) {
         // adTasks counter keeps the "ads watched today" number used by the withdraw requirement
         $inc: { egBalance: cfg.reward, farmClaims: 1, totalAdsWatched: 1, [`adTasks.${today}.${network}`]: 1 },
         $set: { [`${p}.nextClaimAt`]: new Date(now.getTime() + cfg.hours * 3600 * 1000), lastAdClaimAt: now, lastAdStartUsed: startNum },
-        // farmClaimTimes = exact time of each farm claim; api/withdraw.js needs 3 of them inside the last 3 hours
+        // farmClaimTimes = exact time of each farm claim (log only). api/withdraw.js counts farmClaims since the last withdrawal
         $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP }, farmClaimTimes: { $each: [Date.now()], $slice: -20 } },
       },
       { returnDocument: 'after' }
@@ -176,21 +176,7 @@ export default async function handler(req, res) {
     const updated = result?.value || result;
     if (!updated) { await releaseCredit(); return res.status(400).json({ error: 'Already claimed or not ready' }); }
 
-    // Referral reward: first farm claim of a referred user pays the referrer once (flag makes it safe against double pay)
-    if (updated.referralPending && updated.referredBy) {
-      try {
-        const flag = await users.findOneAndUpdate(
-          { telegramId: tgId, referralPending: true },
-          { $set: { referralPending: false, referralPaidAt: new Date() } }
-        );
-        if (flag?.value || (flag && flag._id)) {
-          await users.updateOne(
-            { telegramId: updated.referredBy, isBanned: { $ne: true }, accountLocked: { $ne: true } },
-            { $inc: { egBalance: REFER_REWARD_MM, totalRefEarnedEG: REFER_REWARD_MM } }
-          );
-        }
-      } catch (e) { console.error('referral reward failed:', e); }
-    }
+    await refCheck(db, updated); // referral milestone: friend made 3 farm claims today
 
     // drop day-counters older than 30 days so the object does not grow forever
     const cutoffKey = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
@@ -204,4 +190,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ error: 'Unknown action' });
-                                }
+      }
