@@ -16,11 +16,11 @@ import { checkReferralVelocity, alertIpSignupVelocity } from '../lib/velocity.js
 import { getClientIp, checkDevice, claimDevice, claimDeviceForUser, getOwnerPublicInfo, registryKey, recordSignupAndCheckVelocity, IP_SIGNUP_VELOCITY_THRESHOLD } from '../lib/ipRegistry.js';
 import { checkAndRecordFingerprint } from '../lib/fingerprintCheck.js';
 import { isRegistryBanned } from '../lib/banRegistry.js';
+import { REF } from '../lib/refReward.js';
 
 const MAX_IP_SWITCHES = 2;
 
 // Referral: referrer gets this many MM$ the moment a friend joins via their link.
-const REFER_REWARD_MM = 250;
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -173,10 +173,13 @@ export default async function handler(req, res) {
         const referrer = await users.findOne({ referCode });
         if (referrer && referrer.telegramId !== tgId) {
           newUser.referredBy = referrer.telegramId;
+          newUser.refProg = { join: true };        // marks a friend of the NEW referral system (see lib/refReward.js)
+          const payJoin = !referrer.isBanned && !referrer.accountLocked && !newUser.accountLocked;
+          if (payJoin) newUser.refBonusGenerated = REF.join;
           // also remember WHEN each signup happened (last 50) so referral velocity can be measured
           const after = await users.findOneAndUpdate(
             { telegramId: referrer.telegramId },
-            { $inc: { egBalance: REFER_REWARD_MM, totalRefEarnedEG: REFER_REWARD_MM, totalReferred: 1 },
+            { $inc: { totalReferred: 1, ...(payJoin ? { egBalance: REF.join, totalRefEarnedEG: REF.join } : {}) }, // +50 MM$ for the join; the other milestones are paid later by lib/refReward.js
               $push: { recentReferralSignups: { $each: [new Date()], $slice: -50 } } },
             { returnDocument: 'after' }
           );
@@ -196,4 +199,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-    }
+        }
