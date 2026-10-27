@@ -5,6 +5,7 @@ import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
 import crypto from 'crypto';
+import { refCheck } from '../lib/refReward.js';
 import { detectBotPattern, lockForBotPattern, AD_CLAIM_HISTORY_KEEP } from '../lib/botGuard.js';
 
 // Anti-cheat (ported from NEWTUBE): the app must call action:'start' when an ad is tapped; the server signs
@@ -169,7 +170,7 @@ export default async function handler(req, res) {
         ],
       },
       {
-        $inc: { egBalance: cfg.reward, [path]: 1, totalAdsWatched: 1 },
+        $inc: { egBalance: cfg.reward, [path]: 1, totalAdsWatched: 1, ...(network === 'daily_adsgram_task' ? { adsgramTaskTotal: 1 } : {}) },
         $set: { lastAdClaimAt: new Date(), lastAdStartUsed: startNum },
         ...(cfg.noView ? {} : { $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP } } }),
       },
@@ -195,6 +196,7 @@ export default async function handler(req, res) {
       await users.updateOne({ telegramId: tgId }, { $unset: unset });
     }
 
+    if (network === 'daily_adsgram_task') await refCheck(db, updated); // referral milestone: friend finished 10 Adsgram tasks
     return res.status(200).json({ success: true, reward: cfg.reward, watched, limit: cfg.limit });
   } catch (err) {
     console.error('ads.js error:', err);
