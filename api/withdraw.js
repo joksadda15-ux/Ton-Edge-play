@@ -8,7 +8,7 @@
 //
 // Rules:
 //   • minimum 2,500 MM$ (= $0.05)
-//   • requirement: 3 farm claims in the LAST 3 HOURS (exact time of each claim, rolling)
+//   • requirement: 3 farm claims since the user's last withdrawal (never expires, nothing resets with time)
 //   • 5% fee is taken from the payout
 //   • the first wallet becomes the user's locked wallet; one wallet = one account
 import { getDb } from '../lib/mongodb.js';
@@ -19,8 +19,7 @@ import { tgSend } from '../lib/tg.js';
 const MIN_WITHDRAW_EG = 2500;          // MM$  (50,000 MM$ = $1  →  2,500 MM$ = $0.05)
 const EG_TO_USDT = 1 / 50000;
 const FEE_PERCENT = 5;
-const FARM_CLAIMS_REQUIRED = 3;        // farm claims needed ...
-const FARM_WINDOW_HOURS = 3;           // ... inside the last N hours
+const FARM_CLAIMS_REQUIRED = 3;        // farm claims needed since the last withdrawal (no time limit)
 const TASKS_REQUIRED = 0;              // lifetime tasks needed (0 = no task requirement)
 const MIN_ACCOUNT_AGE_HOURS = 0;       // first withdrawal only (0 = off)
 const WALLET_CHANGE_MAX_REQUESTS = 2;  // lifetime wallet-change requests per user
@@ -29,8 +28,8 @@ const WITHDRAWALS_OPEN = process.env.WITHDRAWALS_OPEN !== '0';
 
 const ADMIN_ID = process.env.ADMIN_ID;
 const TON_ADDR_RE = /^(UQ|EQ)[A-Za-z0-9_-]{46}$/;
-const windowMs = () => FARM_WINDOW_HOURS * 3600 * 1000;
-const recentClaims = (u) => (u.farmClaimTimes || []).filter((t) => Number(t) >= Date.now() - windowMs()).length;
+// farmClaims = lifetime counter (api/farm.js); farmClaimsAtWithdraw = its value when the last withdrawal was made
+const recentClaims = (u) => Math.max(0, (u.farmClaims || 0) - (u.farmClaimsAtWithdraw || 0));
 const esc = (v) => String(v ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const ageHoursLeft = (u) => {
   if (!MIN_ACCOUNT_AGE_HOURS || (u.withdrawalCount || 0) > 0) return 0;
@@ -70,7 +69,7 @@ async function handleStatus(req, res, db) {
       requestsLeft: Math.max(0, WALLET_CHANGE_MAX_REQUESTS - (u.walletChangeRequests || 0)),
     },
     requirements: {
-      farmRequired: FARM_CLAIMS_REQUIRED, farmHave: have, farmWindowHours: FARM_WINDOW_HOURS, farmMet: have >= FARM_CLAIMS_REQUIRED,
+      farmRequired: FARM_CLAIMS_REQUIRED, farmHave: have, farmMet: have >= FARM_CLAIMS_REQUIRED,
       tasksRequired: TASKS_REQUIRED, tasksHave, tasksMet: tasksHave >= TASKS_REQUIRED,
       accountAgeHoursLeft: ageHoursLeft(u),
     },
@@ -132,19 +131,20 @@ async function handleCreate(req, res, db) {
   if (left > 0) return res.status(400).json({ ok: false, error: 'account_too_new', message: `Your account is too new. Wait ${left} more hour(s).` });
   const have = recentClaims(user);
   if (have < FARM_CLAIMS_REQUIRED) {
-    return res.status(400).json({ ok: false, error: 'need_farm_claims', message: `Claim your farms ${FARM_CLAIMS_REQUIRED} times in the last ${FARM_WINDOW_HOURS} hours first (you have ${have}).` });
+    return res.status(400).json({ ok: false, error: 'need_farm_claims', message: `Claim your farms ${FARM_CLAIMS_REQUIRED} times first (you have ${have}).` });
   }
   if ((user.egBalance || 0) < amount) return res.status(400).json({ ok: false, error: 'insufficient_balance', message: 'Not enough MM$.' });
 
   const grossUsdt = amount * EG_TO_USDT;
   const usdtAmount = parseFloat((grossUsdt * (1 - FEE_PERCENT / 100)).toFixed(4));
 
-  const undo = { $inc: { egBalance: amount, withdrawalCount: -1 }, $set: { withdrawPending: false } };
+  const prevBaseline = user.farmClaimsAtWithdraw || 0;
+  const undo = { $inc: { egBalance: amount, withdrawalCount: -1 }, $set: { withdrawPending: false, farmClaimsAtWithdraw: prevBaseline } };
   if (!hasLocked) undo.$unset = { lockedWalletAddress: '' };
-  const set = { withdrawPending: true };
+  const set = { withdrawPending: true, farmClaimsAtWithdraw: user.farmClaims || 0 }; // the 3 claims are used up by this withdrawal
   if (!hasLocked) set.lockedWalletAddress = address;
 
-  // ATOMIC GATE: balance, pending flag and the 3-claims-in-3-hours rule are all checked inside this single update,
+  // ATOMIC GATE: balance, pending flag and the 3-farm-claims rule are all checked inside this single update,
   // so a double tap can never slip a second withdrawal through.
   const gate = await users.findOneAndUpdate(
     {
@@ -154,7 +154,7 @@ async function handleCreate(req, res, db) {
       withdrawPending: { $ne: true },
       $expr: {
         $gte: [
-          { $size: { $filter: { input: { $ifNull: ['$farmClaimTimes', []] }, as: 't', cond: { $gte: ['$$t', Date.now() - windowMs()] } } } },
+          { $subtract: [{ $ifNull: ['$farmClaims', 0] }, { $ifNull: ['$farmClaimsAtWithdraw', 0] }] },
           FARM_CLAIMS_REQUIRED,
         ],
       },
@@ -180,6 +180,7 @@ async function handleCreate(req, res, db) {
     feePercent: FEE_PERCENT,
     usdtAmount,                 // net amount the bot pays out
     status: 'pending',
+    prevBaseline,               // restored if the admin rejects this withdrawal
     createdAt: new Date(),
   };
   let inserted;
