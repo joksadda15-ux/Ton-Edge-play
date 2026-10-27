@@ -17,7 +17,12 @@ const FARMS = [
   { name: 'Farm 5', hours: 8,  reward: 300, price: 5000 },
   { name: 'Farm 6', hours: 12, reward: 500, price: 12500 },
 ];
-const AD_NETWORKS = ['gigapub', 'adsgram_init'];
+const AD_NETWORKS = ['adsgram_block', 'gigapub', 'adsgram_init'];
+// Referral: the referrer gets this when the friend finishes their FIRST farm claim (keep same as api/user.js)
+const REFER_REWARD_MM = 250;
+// AdsGram block ad = S2S: paid only after AdsGram's own server confirmed the ad (credit saved by api/ads.js, network 'daily_adsgram')
+const S2S_NETWORK = 'daily_adsgram';
+const s2sOn = (network) => network === 'adsgram_block' && !!process.env.ADSGRAM_S2S_SECRET;
 // ======================================================
 
 // Ad anti-cheat (same rules as api/ads.js)
@@ -134,6 +139,19 @@ export default async function handler(req, res) {
     if (hit && (await lockForBotPattern(db, tgId, hit, `Farm ${i + 1} · ${network}`, [...(user.recentAdClaims || []), sample])))
       return res.status(403).json({ error: 'account_locked' });
 
+    // AdsGram S2S: reserve one confirmed credit for this user, or tell the app to ask again in a moment
+    let credit = null;
+    if (s2sOn(network)) {
+      const r = await db.collection('adsgramS2S').findOneAndUpdate(
+        { telegramId: tgId, network: S2S_NETWORK, used: false, at: { $gte: new Date(startNum - 3000) } },
+        { $set: { used: true, usedAt: new Date() } },
+        { sort: { at: 1 } }
+      );
+      credit = r?.value || r;
+      if (!credit || !credit._id) return res.status(409).json({ error: 's2s_pending' });
+    }
+    const releaseCredit = () => (credit ? db.collection('adsgramS2S').updateOne({ _id: credit._id }, { $set: { used: false } }).catch(() => {}) : null);
+
     const now = new Date();
     const today = bdTodayKey();
     // Atomic: pays only if the farm is still unlocked + ready, and the ad token was never used before.
@@ -156,7 +174,23 @@ export default async function handler(req, res) {
       { returnDocument: 'after' }
     );
     const updated = result?.value || result;
-    if (!updated) return res.status(400).json({ error: 'Already claimed or not ready' });
+    if (!updated) { await releaseCredit(); return res.status(400).json({ error: 'Already claimed or not ready' }); }
+
+    // Referral reward: first farm claim of a referred user pays the referrer once (flag makes it safe against double pay)
+    if (updated.referralPending && updated.referredBy) {
+      try {
+        const flag = await users.findOneAndUpdate(
+          { telegramId: tgId, referralPending: true },
+          { $set: { referralPending: false, referralPaidAt: new Date() } }
+        );
+        if (flag?.value || (flag && flag._id)) {
+          await users.updateOne(
+            { telegramId: updated.referredBy, isBanned: { $ne: true }, accountLocked: { $ne: true } },
+            { $inc: { egBalance: REFER_REWARD_MM, totalRefEarnedEG: REFER_REWARD_MM } }
+          );
+        }
+      } catch (e) { console.error('referral reward failed:', e); }
+    }
 
     // drop day-counters older than 30 days so the object does not grow forever
     const cutoffKey = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
@@ -170,4 +204,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ error: 'Unknown action' });
-      }
+                                }
