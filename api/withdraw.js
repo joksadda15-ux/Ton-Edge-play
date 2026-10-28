@@ -27,6 +27,9 @@ const WITHDRAWALS_OPEN = process.env.WITHDRAWALS_OPEN !== '0';
 // =====================
 
 const ADMIN_ID = process.env.ADMIN_ID;
+// One-tap manual payment: opens Tonkeeper with the address, USDT jetton and amount already filled in (USDT has 6 decimals)
+const USDT_MASTER = process.env.TON_USDT_MASTER || 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
+const tonkeeperPayUrl = (addr, usd) => `https://app.tonkeeper.com/transfer/${encodeURIComponent(addr)}?jetton=${USDT_MASTER}&amount=${Math.round(Number(usd) * 1e6)}`;
 const TON_ADDR_RE = /^(UQ|EQ)[A-Za-z0-9_-]{46}$/;
 // farmClaims = lifetime counter (api/farm.js); farmClaimsAtWithdraw = its value when the last withdrawal was made
 const recentClaims = (u) => Math.max(0, (u.farmClaims || 0) - (u.farmClaimsAtWithdraw || 0));
@@ -203,17 +206,18 @@ async function handleCreate(req, res, db) {
         `📤 Method: <b>tonkeeper</b>\n` +
         `📍 <code>${esc(address)}</code>\n` +
         `📊 Earlier: ✅ ${prevApproved} approved · ❌ ${prevRejected} rejected\n` +
-        `🌾 Farm claims (last ${FARM_WINDOW_HOURS}h): <b>${have}</b> · Total claims: <b>${user.farmClaims || 0}</b>\n` +
+        `🌾 Farm claims since last withdraw: <b>${have}</b> · Total claims: <b>${user.farmClaims || 0}</b>\n` +
         `👥 Referrals: <b>${user.totalReferred || 0}</b>${user.multiAccountFlag ? '\n🚩 Multi-account flag: <b>YES</b>' : ''}\n` +
         `🆔 <code>${inserted.insertedId}</code>`,
         { reply_markup: { inline_keyboard: [
           [{ text: '✅ Approve', callback_data: `wd_approve_${inserted.insertedId}` }, { text: '❌ Reject', callback_data: `wd_reject_${inserted.insertedId}` }],
+          [{ text: '💎 Pay in Tonkeeper', url: tonkeeperPayUrl(address, usdtAmount) }],
           [{ text: '⚠️ Wrong Address', callback_data: `wd_wrongaddr_${inserted.insertedId}` }],
         ] } });
       if (sent?.ok && sent.result?.message_id) {
         await db.collection('withdrawals').updateOne({ _id: inserted.insertedId }, { $set: { adminMsgChatId: ADMIN_ID, adminMsgId: sent.result.message_id } });
       }
-    } catch { /* the request is saved even if this notification fails */ }
+    } catch (e) { console.error('admin withdraw notification failed:', e); /* the request is saved even if this notification fails */ }
   }
 
   return res.status(200).json({ ok: true, usdtAmount, balance: updated.egBalance, status: 'pending' });
@@ -285,4 +289,4 @@ export default async function handler(req, res) {
     return handleCreate(req, res, db);
   }
   return res.status(405).json({ ok: false, error: 'method_not_allowed' });
-}
+      }
