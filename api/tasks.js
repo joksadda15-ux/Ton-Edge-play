@@ -71,6 +71,10 @@ export default async function handler(req, res) {
       const tq = { active: true };
       if (cat === 'exclusive' || cat === 'daily') tq.category = cat;
       else if (cat === 'partner') tq.category = { $in: ['partner', null] }; // tasks made before categories existed count as partner
+      // hide what this user already finished: normal tasks forever, daily tasks until tomorrow
+      const dDone = user.dailyDone || {}, dToday = bdTodayKey();
+      const finished = [...(user.completedTasks || []), ...Object.keys(dDone).filter((k) => dDone[k] === dToday)];
+      if (finished.length) tq.id = { $nin: finished };
       const tAfter = String(req.query.after || '');
       if (ID_CURSOR.test(tAfter)) tq._id = { $lt: new ObjectId(tAfter) };
       const rows = await tasksCol.find(tq).sort({ _id: -1 }).limit(PAGE + 1)
@@ -167,4 +171,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-          }
+  }
