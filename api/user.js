@@ -179,7 +179,7 @@ export default async function handler(req, res) {
           // also remember WHEN each signup happened (last 50) so referral velocity can be measured
           const after = await users.findOneAndUpdate(
             { telegramId: referrer.telegramId },
-            { $inc: { totalReferred: 1, ...(payJoin ? { egBalance: REF.join, totalRefEarnedEG: REF.join } : {}) }, // +50 MM$ for the join; the other milestones are paid later by lib/refReward.js
+            { $inc: { totalReferred: 1, ...(payJoin ? { egBalance: REF.join, totalRefEarnedEG: REF.join, 'refStats.join.n': 1, 'refStats.join.mm': REF.join } : {}) }, // +50 MM$ for the join; the other milestones are paid later by lib/refReward.js
               $push: { recentReferralSignups: { $each: [new Date()], $slice: -50 } } },
             { returnDocument: 'after' }
           );
