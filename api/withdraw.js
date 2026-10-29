@@ -11,6 +11,7 @@
 //   • requirement: 3 farm claims since the user's last withdrawal (never expires, nothing resets with time)
 //   • 5% fee is taken from the payout
 //   • the first wallet becomes the user's locked wallet; one wallet = one account
+import { wdNo, nextWithdrawSerial } from '../lib/wdSerial.js';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { tgSend } from '../lib/tg.js';
@@ -91,7 +92,7 @@ async function handleHistory(req, res, db) {
   if (Number.isFinite(before) && before > 0) q.createdAt = { $lt: new Date(before) };
   const rows = await db.collection('withdrawals')
     .find(q).sort({ createdAt: -1 }).limit(HIST_PAGE + 1)
-    .project({ egAmount: 1, usdtAmount: 1, status: 1, createdAt: 1 })
+    .project({ egAmount: 1, usdtAmount: 1, status: 1, createdAt: 1, serial: 1 })
     .toArray();
   const hasMore = rows.length > HIST_PAGE;
   const list = hasMore ? rows.slice(0, HIST_PAGE) : rows;
@@ -186,6 +187,7 @@ async function handleCreate(req, res, db) {
     prevBaseline,               // restored if the admin rejects this withdrawal
     createdAt: new Date(),
   };
+  try { doc.serial = await nextWithdrawSerial(db); } catch { /* the number is cosmetic: never block a withdrawal for it */ }
   let inserted;
   try {
     inserted = await db.collection('withdrawals').insertOne(doc);
@@ -199,8 +201,9 @@ async function handleCreate(req, res, db) {
     try {
       const prevApproved = await db.collection('withdrawals').countDocuments({ telegramId: tgId, status: 'approved' });
       const prevRejected = await db.collection('withdrawals').countDocuments({ telegramId: tgId, status: 'rejected' });
+      const sharedWith = (await db.collection('withdrawals').distinct('telegramId', { address, telegramId: { $ne: tgId } })).slice(0, 5);
       const sent = await tgSend(ADMIN_ID,
-        `💸 <b>New Withdraw Request</b>\n\n` +
+        `💸 <b>New Withdraw Request ${wdNo(doc)}</b>\n\n` +
         `👤 <code>${tgId}</code>${user.username ? ' (@' + esc(user.username) + ')' : ''}\n` +
         `💰 ${amount.toLocaleString()} MM$ → <b>${usdtAmount} USDT</b> (after ${FEE_PERCENT}% fee)\n` +
         `📤 Method: <b>tonkeeper</b>\n` +
@@ -208,6 +211,7 @@ async function handleCreate(req, res, db) {
         `📊 Earlier: ✅ ${prevApproved} approved · ❌ ${prevRejected} rejected\n` +
         `🌾 Farm claims since last withdraw: <b>${have}</b> · Total claims: <b>${user.farmClaims || 0}</b>\n` +
         `👥 Referrals: <b>${user.totalReferred || 0}</b>${user.multiAccountFlag ? '\n🚩 Multi-account flag: <b>YES</b>' : ''}\n` +
+        (sharedWith.length ? `🚨 <b>This wallet was also used by ${sharedWith.length} other account(s):</b> ${sharedWith.map((x) => '<code>' + esc(x) + '</code>').join(', ')}\n` : '') +
         `🆔 <code>${inserted.insertedId}</code>`,
         { reply_markup: { inline_keyboard: [
           [{ text: '✅ Approve', callback_data: `wd_approve_${inserted.insertedId}` }, { text: '❌ Reject', callback_data: `wd_reject_${inserted.insertedId}` }],
@@ -289,4 +293,4 @@ export default async function handler(req, res) {
     return handleCreate(req, res, db);
   }
   return res.status(405).json({ ok: false, error: 'method_not_allowed' });
-      }
+}
