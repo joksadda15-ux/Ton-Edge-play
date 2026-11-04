@@ -1,6 +1,7 @@
 // FILE PATH: api/farm.js
 // Farming: 6 farms, each pays a fixed MM$ reward once per cycle.
 // Farm 1 is free, farms 2-6 are bought with MM$. Every claim needs one ad (GigaPub / AdsGram).
+import { cyInc, cyMin } from '../lib/cycleStats.js';
 import crypto from 'crypto';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
@@ -166,7 +167,8 @@ export default async function handler(req, res) {
       },
       {
         // adTasks counter keeps the "ads watched today" number used by the withdraw requirement
-        $inc: { egBalance: cfg.reward, farmClaims: 1, totalAdsWatched: 1, [`adTasks.${today}.${network}`]: 1 },
+        $inc: { egBalance: cfg.reward, farmClaims: 1, totalAdsWatched: 1, [`adTasks.${today}.${network}`]: 1, ...cyInc('farm', cfg.reward) },
+        $min: cyMin(), // cycle report: "since last withdraw" counters (lib/cycleStats.js)
         $set: { [`${p}.nextClaimAt`]: new Date(now.getTime() + cfg.hours * 3600 * 1000), lastAdClaimAt: now, lastAdStartUsed: startNum },
         // farmClaimTimes = exact time of each farm claim (log only). api/withdraw.js counts farmClaims since the last withdrawal
         $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP }, farmClaimTimes: { $each: [Date.now()], $slice: -20 } },
@@ -190,4 +192,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ error: 'Unknown action' });
-      }
+  }
