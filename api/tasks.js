@@ -1,6 +1,7 @@
 // FILE PATH: api/tasks.js
 // (GitHub repo te ei path e file ta rakhbe: api/tasks.js)
 
+import { cyInc, cyMin } from '../lib/cycleStats.js';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { ObjectId } from 'mongodb';
@@ -152,8 +153,8 @@ export default async function handler(req, res) {
           ? { telegramId: String(telegramId), [`dailyDone.${taskId}`]: { $ne: today }, ...tokOk }
           : { telegramId: String(telegramId), completedTasks: { $ne: taskId }, ...tokOk },
         isDaily
-          ? { $inc: { egBalance: task.reward, tasksDoneTotal: 1 }, $set: { [`dailyDone.${taskId}`]: today, ...tokSet } }
-          : { $inc: { egBalance: task.reward, tasksDoneTotal: 1 }, $set: tokSet, $push: { completedTasks: taskId } },
+          ? { $inc: { egBalance: task.reward, tasksDoneTotal: 1, ...cyInc('task', task.reward) }, $min: cyMin(), $set: { [`dailyDone.${taskId}`]: today, ...tokSet } }
+          : { $inc: { egBalance: task.reward, tasksDoneTotal: 1, ...cyInc('task', task.reward) }, $min: cyMin(), $set: tokSet, $push: { completedTasks: taskId } },
         { returnDocument: 'after' }
       );
       const updated = result?.value || result;
@@ -171,4 +172,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-  }
+      }
