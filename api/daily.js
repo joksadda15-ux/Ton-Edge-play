@@ -1,3 +1,4 @@
+import { cyInc, cyMin } from '../lib/cycleStats.js';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
@@ -43,7 +44,7 @@ export default async function handler(req, res) {
       // Atomic: only one request per day can pass this filter, so a double tap cannot pay twice.
       const result = await users.findOneAndUpdate(
         { telegramId: String(telegramId), 'loginBonus.lastDay': { $ne: today } },
-        { $inc: { egBalance: reward }, $set: { loginBonus: { lastDay: today, streak: day } } },
+        { $inc: { egBalance: reward, ...cyInc('login', reward) }, $min: cyMin(), $set: { loginBonus: { lastDay: today, streak: day } } },
         { returnDocument: 'after' }
       );
       const updated = result?.value || result;
@@ -84,7 +85,7 @@ export default async function handler(req, res) {
       // of the same code by the same user could both succeed.
       const result = await users.findOneAndUpdate(
         { telegramId: String(telegramId), promosUsed: { $ne: cleanCode } },
-        { $inc: { [field]: promo.reward }, $push: { promosUsed: cleanCode } },
+        { $inc: { [field]: promo.reward, ...cyInc('promo', promo.reward) }, $min: cyMin(), $push: { promosUsed: cleanCode } },
         { returnDocument: 'after' }
       );
       const updated = result?.value || result;
@@ -106,4 +107,4 @@ export default async function handler(req, res) {
     console.error('daily.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-                                       }
+}
