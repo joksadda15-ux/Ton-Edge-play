@@ -10,6 +10,7 @@
 // so folding related small endpoints into the file they're closest to
 // keeps headroom for future features instead of burning a slot each time.
 
+import { cyInc, cyMin } from '../lib/cycleStats.js';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { checkReferralVelocity, alertIpSignupVelocity } from '../lib/velocity.js';
@@ -179,7 +180,7 @@ export default async function handler(req, res) {
           // also remember WHEN each signup happened (last 50) so referral velocity can be measured
           const after = await users.findOneAndUpdate(
             { telegramId: referrer.telegramId },
-            { $inc: { totalReferred: 1, ...(payJoin ? { egBalance: REF.join, totalRefEarnedEG: REF.join, 'refStats.join.n': 1, 'refStats.join.mm': REF.join } : {}) }, // +50 MM$ for the join; the other milestones are paid later by lib/refReward.js
+            { $inc: { totalReferred: 1, ...(payJoin ? { egBalance: REF.join, totalRefEarnedEG: REF.join, 'refStats.join.n': 1, 'refStats.join.mm': REF.join, ...cyInc('refJoin', REF.join) } : {}) }, ...(payJoin ? { $min: cyMin() } : {}), // +50 MM$ for the join; the other milestones are paid later by lib/refReward.js
               $push: { recentReferralSignups: { $each: [new Date()], $slice: -50 } } },
             { returnDocument: 'after' }
           );
