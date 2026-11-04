@@ -1,6 +1,7 @@
 // FILE PATH: api/ads.js
 // (GitHub repo te ei path e file ta rakhbe: api/ads.js)
 
+import { cyInc, cyMin } from '../lib/cycleStats.js';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
@@ -170,7 +171,8 @@ export default async function handler(req, res) {
         ],
       },
       {
-        $inc: { egBalance: cfg.reward, [path]: 1, totalAdsWatched: 1, ...(network === 'daily_adsgram_task' ? { adsgramTaskTotal: 1 } : {}) },
+        $inc: { egBalance: cfg.reward, [path]: 1, totalAdsWatched: 1, ...(network === 'daily_adsgram_task' ? { adsgramTaskTotal: 1 } : {}), ...cyInc(network, cfg.reward) },
+        $min: cyMin(), // cycle report counters (lib/cycleStats.js)
         $set: { lastAdClaimAt: new Date(), lastAdStartUsed: startNum },
         ...(cfg.noView ? {} : { $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP } } }),
       },
@@ -202,4 +204,4 @@ export default async function handler(req, res) {
     console.error('ads.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-      }
+          }
