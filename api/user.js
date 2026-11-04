@@ -123,7 +123,7 @@ export default async function handler(req, res) {
       if (existing && chk.unclaimed) await claimDevice(db, chk.key, tgId);
 
       if (existing) {
-        checkAndRecordFingerprint(db, tgId, fp).catch(() => {}); // soft multi-account flag (admin review only)
+        await checkAndRecordFingerprint(db, tgId, fp).catch(() => {}); // multi-account guard: locks every account on this device except the oldest (original) one
         const updated = await users.findOneAndUpdate(
           { telegramId: tgId },
           { $set: { lastActive: new Date() }, $inc: { appOpens: 1 } },
@@ -200,4 +200,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-        }
+      }
