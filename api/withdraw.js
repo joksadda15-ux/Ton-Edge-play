@@ -15,6 +15,7 @@ import { wdNo, nextWithdrawSerial } from '../lib/wdSerial.js';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { tgSend } from '../lib/tg.js';
+import { buildCycleReport, renderCycleShort } from '../lib/cycleStats.js';
 
 // ===== EDIT HERE =====
 const MIN_WITHDRAW_EG = 2500;          // MM$  (50,000 MM$ = $1  →  2,500 MM$ = $0.05)
@@ -201,6 +202,7 @@ async function handleCreate(req, res, db) {
     try {
       const prevApproved = await db.collection('withdrawals').countDocuments({ telegramId: tgId, status: 'approved' });
       const prevRejected = await db.collection('withdrawals').countDocuments({ telegramId: tgId, status: 'rejected' });
+      const cyRep = await buildCycleReport(db, user).catch(() => null); // 📊 what they earned since the last approved withdraw
       const sharedWith = (await db.collection('withdrawals').distinct('telegramId', { address, telegramId: { $ne: tgId } })).slice(0, 5);
       const sent = await tgSend(ADMIN_ID,
         `💸 <b>New Withdraw Request ${wdNo(doc)}</b>\n\n` +
@@ -212,11 +214,12 @@ async function handleCreate(req, res, db) {
         `🌾 Farm claims since last withdraw: <b>${have}</b> · Total claims: <b>${user.farmClaims || 0}</b>\n` +
         `👥 Referrals: <b>${user.totalReferred || 0}</b>${user.multiAccountFlag ? '\n🚩 Multi-account flag: <b>YES</b>' : ''}\n` +
         (sharedWith.length ? `🚨 <b>This wallet was also used by ${sharedWith.length} other account(s):</b> ${sharedWith.map((x) => '<code>' + esc(x) + '</code>').join(', ')}\n` : '') +
+        `\n${renderCycleShort(cyRep)}\n\n` +
         `🆔 <code>${inserted.insertedId}</code>`,
         { reply_markup: { inline_keyboard: [
           [{ text: '✅ Approve', callback_data: `wd_approve_${inserted.insertedId}` }, { text: '❌ Reject', callback_data: `wd_reject_${inserted.insertedId}` }],
           [{ text: '💎 Pay in Tonkeeper', url: tonkeeperPayUrl(address, usdtAmount) }],
-          [{ text: '⚠️ Wrong Address', callback_data: `wd_wrongaddr_${inserted.insertedId}` }],
+          [{ text: '⚠️ Wrong Address', callback_data: `wd_wrongaddr_${inserted.insertedId}` }, { text: '👤 View User', callback_data: `lookup_${tgId}` }],
         ] } });
       if (sent?.ok && sent.result?.message_id) {
         await db.collection('withdrawals').updateOne({ _id: inserted.insertedId }, { $set: { adminMsgChatId: ADMIN_ID, adminMsgId: sent.result.message_id } });
