@@ -90,6 +90,7 @@ export default async function handler(req, res) {
         { projection: { _id: 0 } }
       );
       if (!user) return res.status(404).json({ error: 'User not found' });
+      if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
       return res.status(200).json({ success: true, user });
     }
 
@@ -111,6 +112,7 @@ export default async function handler(req, res) {
         users.findOne({ telegramId: tgId }),
         checkDevice(db, fp, clientIp, tgId),
       ]);
+      if (existing?.isBanned) return res.status(403).json({ error: 'Account banned' }); // banned: the app does not open at all
       if (chk.fallbackCollision && existing) await users.updateOne({ telegramId: tgId }, { $set: { ipFallbackFlag: true } });
       if (chk.blocked) {
         // another account owns this device: do NOT create/open anything (also means no referral reward for a blocked sign-up)
@@ -200,4 +202,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-      }
+          }
