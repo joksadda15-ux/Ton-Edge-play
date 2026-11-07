@@ -220,6 +220,7 @@ async function handleCreate(req, res, db) {
           [{ text: '✅ Approve', callback_data: `wd_approve_${inserted.insertedId}` }, { text: '❌ Reject', callback_data: `wd_reject_${inserted.insertedId}` }],
           [{ text: '💎 Pay in Tonkeeper', url: tonkeeperPayUrl(address, usdtAmount) }],
           [{ text: '⚠️ Wrong Address', callback_data: `wd_wrongaddr_${inserted.insertedId}` }, { text: '👤 View User', callback_data: `lookup_${tgId}` }],
+          [{ text: '🚨 Scam: Reject + Zero + Ban', callback_data: `scam_${tgId}` }],
         ] } });
       if (sent?.ok && sent.result?.message_id) {
         await db.collection('withdrawals').updateOne({ _id: inserted.insertedId }, { $set: { adminMsgChatId: ADMIN_ID, adminMsgId: sent.result.message_id } });
@@ -296,4 +297,4 @@ export default async function handler(req, res) {
     return handleCreate(req, res, db);
   }
   return res.status(405).json({ ok: false, error: 'method_not_allowed' });
-}
+    }
