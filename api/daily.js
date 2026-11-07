@@ -55,7 +55,8 @@ export default async function handler(req, res) {
     // ── action: promo ─────────────────────────────────────────────
     if (action === 'promo') {
       if (!code) return res.status(400).json({ error: 'code required' });
-      const cleanCode = code.toUpperCase().trim();
+      if (user.accountLocked) return res.status(403).json({ error: 'account_locked' });
+      const cleanCode = String(code).toUpperCase().trim().slice(0, 40);
       const { checkOnly } = req.body;
       const promos = db.collection('promos');
       const promo = await promos.findOne({ code: cleanCode });
@@ -80,9 +81,14 @@ export default async function handler(req, res) {
       // Every promo pays MM$ now (old Gold promos are converted by the migration script).
       const field = 'egBalance';
 
-      // Atomic redeem: only succeeds if this code isn't already in
-      // promosUsed. Previously read-then-write, so two simultaneous redeems
-      // of the same code by the same user could both succeed.
+      // 1) reserve one use of the code ATOMICALLY (two people can never take the last slot together)
+      const slot = await promos.findOneAndUpdate(
+        { code: cleanCode, $or: [{ maxUses: { $in: [0, null] } }, { $expr: { $lt: [{ $ifNull: ['$usedCount', 0] }, '$maxUses'] } }] },
+        { $inc: { usedCount: 1 } }
+      );
+      if (!(slot?.value !== undefined ? slot.value : slot)) return res.status(200).json({ valid: false, error: 'Promo code limit reached.' });
+
+      // 2) pay the user, only if this code is not already in promosUsed (double tap safe)
       const result = await users.findOneAndUpdate(
         { telegramId: String(telegramId), promosUsed: { $ne: cleanCode } },
         { $inc: { [field]: promo.reward, ...cyInc('promo', promo.reward) }, $min: cyMin(), $push: { promosUsed: cleanCode } },
@@ -90,14 +96,9 @@ export default async function handler(req, res) {
       );
       const updated = result?.value || result;
       if (!updated) {
+        await promos.updateOne({ code: cleanCode }, { $inc: { usedCount: -1 } }); // give the reserved use back
         return res.status(200).json({ valid: false, error: 'Already used this promo code.' });
       }
-
-      // Still not perfectly race-proof against maxUses across DIFFERENT
-      // users hitting the last slot at the same instant (this $inc isn't
-      // conditioned on usedCount < maxUses), but that only risks a handful
-      // of extra redemptions on a capped code, not unlimited balance growth.
-      await promos.updateOne({ code: cleanCode }, { $inc: { usedCount: 1 } });
 
       return res.status(200).json({ success: true, reward: promo.reward, currency: 'mm' });
     }
@@ -107,4 +108,4 @@ export default async function handler(req, res) {
     console.error('daily.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-}
+        }
