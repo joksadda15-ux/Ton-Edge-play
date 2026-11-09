@@ -2,10 +2,31 @@ import { cyInc, cyMin } from '../lib/cycleStats.js';
 import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
+import { tgApi } from '../lib/tg.js';
 
 // ===== EDIT HERE: login bonus (MM$ for day 1, 2, 3 ... then it starts again from day 1) =====
-const LOGIN_BONUS = [10, 20, 40, 70, 100, 150, 300];
+const LOGIN_BONUS = [20, 40, 80, 140, 200, 300, 600];
+// The user must keep OUR bot's referral link (their own refer code) in their Telegram bio to claim the login bonus.
+const BOT_USERNAME = 'TonEdge_play_bot';   // same bot as MINI_APP_URL in api/bot.js
+const APP_SHORT_NAME = 'playearn';
 // ===========================================================================================
+
+const refLinkFor = (code) => `t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=${code}`;
+// bio must contain this bot + the user's OWN refer code (case-insensitive, code must end there)
+const bioHasLink = (bio, code) => {
+  const b = String(bio || '').toLowerCase();
+  const c = String(code || '').toLowerCase();
+  if (!c || !b.includes(BOT_USERNAME.toLowerCase())) return false;
+  return new RegExp('startapp=' + c.replace(/[^a-z0-9]/g, '') + '(?![a-z0-9])').test(b);
+};
+// Telegram only shows a user's bio to the bot if they started the bot and their privacy allows it.
+async function getUserBio(tgId) {
+  try {
+    const r = await tgApi('getChat', { chat_id: Number(tgId) });
+    if (!r?.ok) return { ok: false };
+    return { ok: true, bio: r.result?.bio || '' };
+  } catch { return { ok: false }; }
+}
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -29,7 +50,7 @@ export default async function handler(req, res) {
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
 
-    // ── action: login (daily login bonus, streak 10 → 300 MM$) ──────
+    // ── action: login (daily login bonus, streak 20 → 600 MM$) ──────
     // One claim per Bangladesh calendar day. Miss a day and the streak starts again from day 1.
     if (action === 'login') {
       if (user.accountLocked) return res.status(403).json({ error: 'account_locked' });
@@ -37,6 +58,12 @@ export default async function handler(req, res) {
       const yesterday = bdTodayKey(new Date(Date.now() - 86400000));
       const lb = user.loginBonus || {};
       if (lb.lastDay === today) return res.status(400).json({ error: 'Already claimed today. Come back tomorrow.' });
+
+      // Bio check: the user's Telegram bio must contain their own referral link of our bot.
+      if (!user.referCode) return res.status(500).json({ error: 'Server error' });
+      const bio = await getUserBio(String(telegramId));
+      if (!bio.ok) return res.status(400).json({ error: 'bio_check_failed', link: refLinkFor(user.referCode) });
+      if (!bioHasLink(bio.bio, user.referCode)) return res.status(400).json({ error: 'bio_link_missing', link: refLinkFor(user.referCode) });
 
       const day = lb.lastDay === yesterday ? ((lb.streak || 0) % LOGIN_BONUS.length) + 1 : 1;
       const reward = LOGIN_BONUS[day - 1];
@@ -108,4 +135,4 @@ export default async function handler(req, res) {
     console.error('daily.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-        }
+  }
