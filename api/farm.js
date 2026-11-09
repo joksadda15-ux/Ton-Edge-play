@@ -13,11 +13,11 @@ import { detectBotPattern, lockForBotPattern, AD_CLAIM_HISTORY_KEEP } from '../l
 // hours = how often you can claim, reward = MM$ per claim, price = MM$ to buy (0 = free)
 const FARMS = [
   { name: 'Farm 1', hours: 1,  reward: 30,  price: 0 },
-  { name: 'Farm 2', hours: 2,  reward: 50,  price: 250 },
-  { name: 'Farm 3', hours: 4,  reward: 100, price: 750 },
-  { name: 'Farm 4', hours: 6,  reward: 200, price: 2000 },
-  { name: 'Farm 5', hours: 8,  reward: 300, price: 5000 },
-  { name: 'Farm 6', hours: 12, reward: 500, price: 12500 },
+  { name: 'Farm 2', hours: 2,  reward: 50,  price: 400 },
+  { name: 'Farm 3', hours: 4,  reward: 100, price: 1000 },
+  { name: 'Farm 4', hours: 6,  reward: 200, price: 2500 },
+  { name: 'Farm 5', hours: 8,  reward: 300, price: 6000 },
+  { name: 'Farm 6', hours: 12, reward: 500, price: 15000 },
 ];
 const AD_NETWORKS = ['adsgram_block', 'gigapub', 'adsgram_init'];
 // AdsGram block ad = S2S: paid only after AdsGram's own server confirmed the ad (credit saved by api/ads.js, network 'daily_adsgram')
@@ -192,4 +192,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ error: 'Unknown action' });
-  }
+    }
