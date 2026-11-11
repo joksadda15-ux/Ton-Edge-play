@@ -22,6 +22,21 @@ const signTask = (tgId, taskId, t) =>
   crypto.createHmac('sha256', crypto.createHash('sha256').update('taskstart:' + process.env.BOT_TOKEN).digest()).update(`${tgId}:${taskId}:${t}`).digest('hex');
 
 const BOT_LINK = 'http://t.me/TonEdge_play_bot/playearn';
+
+// 📌 PINNED DAILY TASK: always the FIRST card in Tasks (All + Daily), comes back every day (Bangladesh time).
+// It lives in code, not in the database, so it can never be deleted or pushed down by new tasks.
+// Verified by Telegram itself (getChatMember), so the OUR BOT MUST BE AN ADMIN of this channel.
+// Reward: change the number below, or set PIN_TASK_REWARD on the server.
+const PIN = {
+  id: 'pinned_promo_channel',
+  title: '📌 Join Promo Code Channel',
+  reward: Number(process.env.PIN_TASK_REWARD) || 50,
+  link: 'https://t.me/Zero_Team_reedem',
+  channelId: '@Zero_Team_reedem',
+  category: 'daily',
+  verifyType: 'api',
+  virtual: true,
+};
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -94,14 +109,18 @@ export default async function handler(req, res) {
           completed: category === 'daily' ? dd[t.id] === today : done.has(t.id), // daily tasks come back every day
         };
       });
-      return res.status(200).json({ success: true, tasks: result, nextCursor: hasMore ? String(pageRows[pageRows.length - 1]._id) : null });
+      // the pinned task goes in its own field (first page of All / Daily only), so paging of the normal tasks is untouched
+      const pinned = (!tAfter && (cat === 'all' || cat === 'daily'))
+        ? [{ id: PIN.id, title: PIN.title, reward: PIN.reward, link: PIN.link, category: PIN.category, verifyType: PIN.verifyType, logo: null, hasLogo: false, completed: dd[PIN.id] === today }]
+        : [];
+      return res.status(200).json({ success: true, pinned, tasks: result, nextCursor: hasMore ? String(pageRows[pageRows.length - 1]._id) : null });
     }
 
     if (req.method === 'POST') {
       const { taskId, action, startTime, signature } = req.body;
       if (!taskId) return res.status(400).json({ error: 'taskId required' });
 
-      const task = await tasksCol.findOne({ id: taskId, active: true });
+      const task = taskId === PIN.id ? PIN : await tasksCol.findOne({ id: taskId, active: true });
       if (!task) return res.status(404).json({ error: 'Task not found' });
       if (user.accountLocked) return res.status(403).json({ error: 'Account under review.' });
 
@@ -135,7 +154,8 @@ export default async function handler(req, res) {
       }
 
       // Reserve one of the task's limited slots first (user-created tasks are capped by what the creator paid for).
-      const slotRes = task.maxCompletions
+      const slotRes = task.virtual ? { value: task } // the pinned task has no slot limit and no database row
+        : task.maxCompletions
         ? await tasksCol.findOneAndUpdate(
             { id: taskId, active: true, $expr: { $lt: [{ $ifNull: ['$completedCount', 0] }, '$maxCompletions'] } },
             { $inc: { completedCount: 1 } }, { returnDocument: 'after' })
@@ -159,7 +179,7 @@ export default async function handler(req, res) {
       );
       const updated = result?.value || result;
       if (!updated) {
-        await tasksCol.updateOne({ id: taskId }, { $inc: { completedCount: -1 }, $set: { active: true }, $unset: { completedAt: '' } }); // give the slot back
+        if (!task.virtual) await tasksCol.updateOne({ id: taskId }, { $inc: { completedCount: -1 }, $set: { active: true }, $unset: { completedAt: '' } }); // give the slot back
         return res.status(400).json({ error: 'Task already completed.' });
       }
 
@@ -172,4 +192,4 @@ export default async function handler(req, res) {
     console.error('tasks.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-          }
+    }
