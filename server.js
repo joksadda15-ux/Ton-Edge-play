@@ -17,6 +17,9 @@ import payments from './api/payments.js';
 import cron from './api/cron.js';
 import logo from './api/logo.js';
 import { shieldIp, shieldUser } from './lib/shield.js';
+import { HONEYPOT_PATHS, honeypotHit } from './lib/traps.js';
+import { getDb } from './lib/mongodb.js';
+import { verifyTelegramInit } from './lib/auth.js';
 
 // A bug or a hacker's weird request must NEVER kill the server: log it and keep running.
 process.on('unhandledRejection', (e) => console.error('unhandledRejection:', e));
@@ -50,7 +53,17 @@ const routes = { user, tasks, daily, ads, withdraw, bot, farm, payments, cron, l
 app.all('/api/:name', async (req, res) => {
   const name = req.params.name;
   const handler = Object.prototype.hasOwnProperty.call(routes, name) ? routes[name] : null; // 'constructor' & co. are not routes
-  if (!handler) return res.status(404).json({ error: 'Not found' });
+  if (!handler) {
+    // 🪤 honeypot: decoy URLs the real app never calls. Logged (and the user is flagged if a valid session came with it), then answered like any unknown URL.
+    if (HONEYPOT_PATHS.includes(name)) {
+      try {
+        const src = req.method === 'GET' ? req.query : (req.body || {});
+        const tg = verifyTelegramInit(typeof src?.initData === 'string' ? src.initData : '');
+        await honeypotHit(await getDb(), req, name, tg?.id ? String(tg.id) : null);
+      } catch { /* a trap must never break the server */ }
+    }
+    return res.status(404).json({ error: 'Not found' });
+  }
   try {
     await handler(req, res);
   } catch (err) {
