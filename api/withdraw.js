@@ -16,6 +16,7 @@ import { getDb } from '../lib/mongodb.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { tgSend } from '../lib/tg.js';
 import { buildCycleReport, renderCycleShort } from '../lib/cycleStats.js';
+import { trapHit, decoyFieldsIn } from '../lib/traps.js';
 
 // ===== EDIT HERE =====
 const MIN_WITHDRAW_EG = 2500;          // MM$  (50,000 MM$ = $1  →  2,500 MM$ = $0.05)
@@ -61,8 +62,22 @@ async function handleStatus(req, res, db) {
   const u = a.user;
   const have = recentClaims(u);
   const tasksHave = (u.completedTasks || []).length;
+  // Last withdrawal (rejected ones do not count) + how many friends joined through this user since then
+  let lastWithdraw = null, referralsSince = u.totalReferred || 0;
+  try {
+    const last = await db.collection('withdrawals')
+      .find({ telegramId: String(u.telegramId), status: { $ne: 'rejected' } })
+      .sort({ createdAt: -1 }).limit(1).project({ createdAt: 1, egAmount: 1, status: 1 }).toArray();
+    if (last[0]) {
+      lastWithdraw = { at: new Date(last[0].createdAt).getTime(), egAmount: last[0].egAmount || 0, status: last[0].status };
+      referralsSince = await db.collection('users').countDocuments({ referredBy: String(u.telegramId), createdAt: { $gt: new Date(last[0].createdAt) } });
+    }
+  } catch { /* never break the withdraw screen for this extra info */ }
   return res.status(200).json({
     ok: true,
+    lastWithdraw,
+    referralsSince,
+    referralsTotal: u.totalReferred || 0,
     balance: u.egBalance || 0,
     minWithdraw: MIN_WITHDRAW_EG,
     feePercent: FEE_PERCENT,
@@ -107,6 +122,8 @@ async function handleCreate(req, res, db) {
   const a = await authed(req, res, users, req.body || {});
   if (!a) return;
   const user = a.user, tgId = String(user.telegramId);
+  const decoys = decoyFieldsIn(req.body); // 🪤 the app only sends address + egAmount
+  if (decoys.length) { await trapHit(db, tgId, 'tampered_request', `withdraw: ${decoys.join(',')}`); return res.status(400).json({ ok: false, error: 'bad_request', message: 'Bad request.' }); }
 
   const amount = Math.floor(Number(req.body?.egAmount));
   if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ ok: false, error: 'invalid_amount', message: 'Enter a valid amount.' });
@@ -151,7 +168,9 @@ async function handleCreate(req, res, db) {
 
   // ATOMIC GATE: balance, pending flag and the 3-farm-claims rule are all checked inside this single update,
   // so a double tap can never slip a second withdrawal through.
-  const gate = await users.findOneAndUpdate(
+  let gate;
+  try {
+  gate = await users.findOneAndUpdate(
     {
       telegramId: tgId,
       isBanned: { $ne: true },
@@ -167,6 +186,10 @@ async function handleCreate(req, res, db) {
     { $inc: { egBalance: -amount, withdrawalCount: 1 }, $set: set },
     { returnDocument: 'after' }
   );
+  } catch (e) {
+    if (e?.code === 11000) return res.status(403).json({ ok: false, error: 'wallet_in_use', message: 'This wallet is already linked to another account. One wallet can be used by one account only.' }); // DB-level one-wallet-one-account
+    throw e;
+  }
   const updated = gate?.value || gate;
   if (!updated) {
     const again = await users.findOne({ telegramId: tgId }, { projection: { withdrawPending: 1 } });
@@ -272,11 +295,17 @@ async function handleWalletChange(req, res, db, action) {
   if (!TON_ADDR_RE.test(address)) return res.status(400).json({ ok: false, error: 'invalid_address', message: 'Invalid TonKeeper address. It must start with UQ or EQ.' });
   const dup = await users.findOne({ telegramId: { $ne: tgId }, lockedWalletAddress: address }, { projection: { _id: 1 } });
   if (dup) return res.status(403).json({ ok: false, error: 'wallet_in_use', message: 'This wallet is already linked to another account.' });
-  const done = await users.findOneAndUpdate(
-    { telegramId: tgId, walletChangeStatus: 'approved', withdrawPending: { $ne: true } },
-    { $set: { lockedWalletAddress: address, walletChangedAt: new Date() }, $unset: { walletChangeStatus: '' } },
-    { returnDocument: 'after' }
-  );
+  let done;
+  try {
+    done = await users.findOneAndUpdate(
+      { telegramId: tgId, walletChangeStatus: 'approved', withdrawPending: { $ne: true } },
+      { $set: { lockedWalletAddress: address, walletChangedAt: new Date() }, $unset: { walletChangeStatus: '' } },
+      { returnDocument: 'after' }
+    );
+  } catch (e) {
+    if (e?.code === 11000) return res.status(403).json({ ok: false, error: 'wallet_in_use', message: 'This wallet is already linked to another account.' });
+    throw e;
+  }
   if (!(done?.value || done)) return res.status(409).json({ ok: false, error: 'gate_failed', message: 'Could not change the wallet. Refresh and try again.' });
   if (ADMIN_ID) tgSend(ADMIN_ID, `✅ <b>Wallet changed</b>\n\n👤 <code>${tgId}</code>\n📍 <code>${esc(address)}</code>`).catch(() => {});
   return res.status(200).json({ ok: true, address });
@@ -297,4 +326,4 @@ export default async function handler(req, res) {
     return handleCreate(req, res, db);
   }
   return res.status(405).json({ ok: false, error: 'method_not_allowed' });
-    }
+                                                      }
