@@ -172,25 +172,39 @@ export default async function handler(req, res) {
       }
       alertIpSignupVelocity(clientIp, ipSignups, tgId); // tells the admin (first time + every 10th)
 
+      let referrerToPay = null, payJoin = false;
       if (referCode) {
         const referrer = await users.findOne({ referCode });
         if (referrer && referrer.telegramId !== tgId) {
           newUser.referredBy = referrer.telegramId;
           newUser.refProg = { join: true };        // marks a friend of the NEW referral system (see lib/refReward.js)
-          const payJoin = !referrer.isBanned && !referrer.accountLocked && !newUser.accountLocked;
+          payJoin = !referrer.isBanned && !referrer.accountLocked && !newUser.accountLocked;
           if (payJoin) newUser.refBonusGenerated = REF.join;
-          // also remember WHEN each signup happened (last 50) so referral velocity can be measured
-          const after = await users.findOneAndUpdate(
-            { telegramId: referrer.telegramId },
-            { $inc: { totalReferred: 1, ...(payJoin ? { egBalance: REF.join, totalRefEarnedEG: REF.join, 'refStats.join.n': 1, 'refStats.join.mm': REF.join, ...cyInc('refJoin', REF.join) } : {}) }, ...(payJoin ? { $min: cyMin() } : {}), // +50 MM$ for the join; the other milestones are paid later by lib/refReward.js
-              $push: { recentReferralSignups: { $each: [new Date()], $slice: -50 } } },
-            { returnDocument: 'after' }
-          );
-          checkReferralVelocity(db, after?.value !== undefined ? after.value : after).catch(() => {}); // alert-only, never blocks the signup
+          referrerToPay = referrer;
         }
       }
 
-      await users.insertOne(newUser);
+      // Save the NEW account first, pay the referrer only AFTER it was really saved.
+      // (Before: the referrer was paid first, so two parallel sign-up requests paid the join bonus twice and one insert then failed.)
+      try {
+        await users.insertOne(newUser);
+      } catch (e) {
+        if (e?.code === 11000) { // the same account was created by a parallel request: open it, pay nobody
+          const again = await users.findOne({ telegramId: tgId });
+          return res.status(200).json({ success: true, user: again, isNew: false });
+        }
+        throw e;
+      }
+      if (referrerToPay) {
+        // also remember WHEN each signup happened (last 50) so referral velocity can be measured
+        const after = await users.findOneAndUpdate(
+          { telegramId: referrerToPay.telegramId },
+          { $inc: { totalReferred: 1, ...(payJoin ? { egBalance: REF.join, totalRefEarnedEG: REF.join, 'refStats.join.n': 1, 'refStats.join.mm': REF.join, ...cyInc('refJoin', REF.join) } : {}) }, ...(payJoin ? { $min: cyMin() } : {}), // +50 MM$ for the join; the other milestones are paid later by lib/refReward.js
+            $push: { recentReferralSignups: { $each: [new Date()], $slice: -50 } } },
+          { returnDocument: 'after' }
+        );
+        checkReferralVelocity(db, after?.value !== undefined ? after.value : after).catch(() => {}); // alert-only, never blocks the signup
+      }
       const devKey = registryKey(fp, clientIp);
       if (devKey && !devKey.startsWith('ip:')) { const c = await checkDevice(db, fp, clientIp, tgId); if (c.unclaimed) await claimDevice(db, devKey, tgId); }
       checkAndRecordFingerprint(db, tgId, fp).catch(() => {});
@@ -202,4 +216,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-          }
+                                   }
