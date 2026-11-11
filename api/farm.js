@@ -8,16 +8,17 @@ import { verifyTelegramInit } from '../lib/auth.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
 import { refCheck } from '../lib/refReward.js';
 import { detectBotPattern, lockForBotPattern, AD_CLAIM_HISTORY_KEEP } from '../lib/botGuard.js';
+import { trapHit, decoyFieldsIn } from '../lib/traps.js';
 
 // ===== EDIT HERE: farm settings (50,000 MM$ = $1) =====
 // hours = how often you can claim, reward = MM$ per claim, price = MM$ to buy (0 = free)
 const FARMS = [
-  { name: 'Farm 1', hours: 1,  reward: 30,  price: 0 },
-  { name: 'Farm 2', hours: 2,  reward: 50,  price: 400 },
-  { name: 'Farm 3', hours: 4,  reward: 100, price: 1000 },
-  { name: 'Farm 4', hours: 6,  reward: 200, price: 2500 },
-  { name: 'Farm 5', hours: 8,  reward: 300, price: 6000 },
-  { name: 'Farm 6', hours: 12, reward: 500, price: 15000 },
+  { name: 'Farm 1', hours: 2,  reward: 30,  price: 0 },
+  { name: 'Farm 2', hours: 4,  reward: 50,  price: 400 },
+  { name: 'Farm 3', hours: 8,  reward: 100, price: 1000 },
+  { name: 'Farm 4', hours: 12, reward: 200, price: 2500 },
+  { name: 'Farm 5', hours: 16, reward: 300, price: 6000 },
+  { name: 'Farm 6', hours: 24, reward: 500, price: 15000 },
 ];
 const AD_NETWORKS = ['adsgram_block', 'gigapub', 'adsgram_init'];
 // AdsGram block ad = S2S: paid only after AdsGram's own server confirmed the ad (credit saved by api/ads.js, network 'daily_adsgram')
@@ -85,8 +86,11 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { action } = req.body || {};
+  // 🪤 trap: the real app never sends reward/price/hours/balance fields, so this is a hand-edited request
+  const decoys = decoyFieldsIn(req.body);
+  if (decoys.length) { await trapHit(db, tgId, 'tampered_request', `farm: ${decoys.join(',')}`); return res.status(400).json({ error: 'Bad request' }); }
   const i = parseInt(req.body?.slot, 10);
-  if (!(i >= 0 && i < N)) return res.status(400).json({ error: 'Invalid farm' });
+  if (!(i >= 0 && i < N)) { await trapHit(db, tgId, 'bad_farm_slot', String(req.body?.slot)); return res.status(400).json({ error: 'Invalid farm' }); }
   const cfg = FARMS[i];
   const p = `farm2.slots.${i}`;
 
@@ -191,5 +195,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, reward: cfg.reward, balance: updated.egBalance, farm: view(updated.farm2) });
   }
 
+  await trapHit(db, tgId, 'unknown_action', `farm: ${String(action).slice(0, 40)}`); // 🪤 the app only sends unlock / start / claim
   return res.status(400).json({ error: 'Unknown action' });
-    }
+}
