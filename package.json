@@ -7,7 +7,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "migrate": "node scripts/migrate-gold-to-mm.js"
+    "migrate": "node api/scripts/migrate-gold-to-mm.js"
   },
   "engines": {
     "node": ">=20"
