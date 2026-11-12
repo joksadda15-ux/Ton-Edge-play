@@ -1,4 +1,4 @@
-// FILE PATH: api/ads.js
+কি// FILE PATH: api/ads.js
 // (GitHub repo te ei path e file ta rakhbe: api/ads.js)
 
 import { cyInc, cyMin } from '../lib/cycleStats.js';
@@ -177,7 +177,11 @@ export default async function handler(req, res) {
         $inc: { egBalance: cfg.reward, [path]: 1, totalAdsWatched: 1, ...(network === 'daily_adsgram_task' ? { adsgramTaskTotal: 1 } : {}), ...cyInc(network, cfg.reward) },
         $min: cyMin(), // cycle report counters (lib/cycleStats.js)
         $set: { lastAdClaimAt: new Date(), lastAdStartUsed: startNum },
-        ...(cfg.noView ? {} : { $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP } } }),
+        // $push: ad history for the bot guard + AdsGram claim times (the withdraw requirement "5 AdsGram ads in the last 24h")
+        ...((!cfg.noView || /adsgram/.test(network)) ? { $push: {
+          ...(cfg.noView ? {} : { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP } }),
+          ...(/adsgram/.test(network) ? { adsgramClaimTimes: { $each: [Date.now()], $slice: -30 } } : {}),
+        } } : {}),
       },
       { returnDocument: 'after' }
     );
@@ -207,4 +211,4 @@ export default async function handler(req, res) {
     console.error('ads.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-           }
+        }
