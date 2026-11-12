@@ -175,7 +175,7 @@ export default async function handler(req, res) {
         $min: cyMin(), // cycle report: "since last withdraw" counters (lib/cycleStats.js)
         $set: { [`${p}.nextClaimAt`]: new Date(now.getTime() + cfg.hours * 3600 * 1000), lastAdClaimAt: now, lastAdStartUsed: startNum },
         // farmClaimTimes = exact time of each farm claim (log only). api/withdraw.js counts farmClaims since the last withdrawal
-        $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP }, farmClaimTimes: { $each: [Date.now()], $slice: -20 } },
+        $push: { recentAdClaims: { $each: [sample], $slice: -AD_CLAIM_HISTORY_KEEP }, farmClaimTimes: { $each: [Date.now()], $slice: -20 }, ...(/adsgram/.test(network) ? { adsgramClaimTimes: { $each: [Date.now()], $slice: -30 } } : {}) },
       },
       { returnDocument: 'after' }
     );
@@ -197,4 +197,4 @@ export default async function handler(req, res) {
 
   await trapHit(db, tgId, 'unknown_action', `farm: ${String(action).slice(0, 40)}`); // 🪤 the app only sends unlock / start / claim
   return res.status(400).json({ error: 'Unknown action' });
-}
+        }
