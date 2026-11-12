@@ -1,4 +1,4 @@
-কি// FILE PATH: api/ads.js
+// FILE PATH: api/ads.js
 // (GitHub repo te ei path e file ta rakhbe: api/ads.js)
 
 import { cyInc, cyMin } from '../lib/cycleStats.js';
@@ -211,4 +211,4 @@ export default async function handler(req, res) {
     console.error('ads.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-        }
+          }
