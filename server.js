@@ -16,6 +16,7 @@ import farm from './api/farm.js';
 import payments from './api/payments.js';
 import cron from './api/cron.js';
 import logo from './api/logo.js';
+import human from './api/human.js';
 import { shieldIp, shieldUser } from './lib/shield.js';
 import { HONEYPOT_PATHS, honeypotHit } from './lib/traps.js';
 import { getDb } from './lib/mongodb.js';
@@ -49,7 +50,7 @@ app.use(shieldIp);                                  // 🛡 1: webhook secret + 
 app.use(express.json({ limit: '64kb' }));           // was 1mb: nobody needs a bigger body, and big bodies are a cheap way to hurt a small server
 app.use(shieldUser);                                // 🛡 2: per-user limit (100/min) + fake-session limit
 
-const routes = { user, tasks, daily, ads, withdraw, bot, farm, payments, cron, logo };
+const routes = { user, tasks, daily, ads, withdraw, bot, farm, payments, cron, logo, human };
 app.all('/api/:name', async (req, res) => {
   const name = req.params.name;
   const handler = Object.prototype.hasOwnProperty.call(routes, name) ? routes[name] : null; // 'constructor' & co. are not routes
