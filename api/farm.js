@@ -9,6 +9,7 @@ import { bdTodayKey } from '../lib/dateUtils.js';
 import { refCheck } from '../lib/refReward.js';
 import { detectBotPattern, lockForBotPattern, AD_CLAIM_HISTORY_KEEP } from '../lib/botGuard.js';
 import { trapHit, decoyFieldsIn } from '../lib/traps.js';
+import { humanNeeded } from '../lib/humanCheck.js';
 
 // ===== EDIT HERE: farm settings (50,000 MM$ = $1) =====
 // hours = how often you can claim, reward = MM$ per claim, price = MM$ to buy (0 = free)
@@ -110,6 +111,7 @@ export default async function handler(req, res) {
   // ── claim step 1: tap → server checks the farm is ready and signs a start token ──
   if (action === 'start' || action === 'claim') {
     if (user.accountLocked) return res.status(403).json({ error: 'account_locked' });
+    if (humanNeeded(user, 'claim')) return res.status(403).json({ error: 'human_check_required' }); // 🧑 bot fighter
     const slot = user.farm2.slots[i];
     if (!slot?.unlocked) return res.status(400).json({ error: 'Buy this farm first' });
     const readyAt = slot.nextClaimAt ? new Date(slot.nextClaimAt).getTime() : 0;
@@ -141,8 +143,11 @@ export default async function handler(req, res) {
 
     const sample = { s: startNum, c: Date.now(), w: Math.round(elapsed * 10) / 10, v: Math.round(viewSec * 10) / 10 };
     const hit = detectBotPattern([...(user.recentAdClaims || []), sample]);
-    if (hit && (await lockForBotPattern(db, tgId, hit, `Farm ${i + 1} · ${network}`, [...(user.recentAdClaims || []), sample])))
-      return res.status(403).json({ error: 'account_locked' });
+    if (hit) {
+      const lk = await lockForBotPattern(db, tgId, hit, `Farm ${i + 1} · ${network}`, [...(user.recentAdClaims || []), sample]);
+      if (lk === true) return res.status(403).json({ error: 'account_locked' });
+      if (lk === 'human') return res.status(403).json({ error: 'human_check_required' });
+    }
 
     // AdsGram S2S: reserve one confirmed credit for this user, or tell the app to ask again in a moment
     let credit = null;
@@ -197,4 +202,4 @@ export default async function handler(req, res) {
 
   await trapHit(db, tgId, 'unknown_action', `farm: ${String(action).slice(0, 40)}`); // 🪤 the app only sends unlock / start / claim
   return res.status(400).json({ error: 'Unknown action' });
-        }
+           }
