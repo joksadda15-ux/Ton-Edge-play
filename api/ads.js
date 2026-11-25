@@ -10,6 +10,7 @@ import { refCheck } from '../lib/refReward.js';
 import { detectBotPattern, lockForBotPattern, AD_CLAIM_HISTORY_KEEP } from '../lib/botGuard.js';
 import { trapHit, decoyFieldsIn } from '../lib/traps.js';
 import { humanNeeded } from '../lib/humanCheck.js';
+import { AD_SAFETY_DAYS } from '../lib/adCleanup.js';
 
 // Anti-cheat (ported from NEWTUBE): the app must call action:'start' when an ad is tapped; the server signs
 // the start time. A claim is only paid if the signed token is genuine, one-time, fresh, and the ad was on screen long enough.
@@ -202,7 +203,7 @@ export default async function handler(req, res) {
     // object grows by one key per day forever. Cheap: only writes when
     // there's actually something stale (string comparison works because
     // the keys are YYYY-MM-DD, which sorts lexically like a real date).
-    const cutoffKey = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const cutoffKey = new Date(Date.now() - AD_SAFETY_DAYS * 86400000).toISOString().slice(0, 10);
     const staleKeys = Object.keys(updated.adTasks || {}).filter(k => k < cutoffKey);
     if (staleKeys.length) {
       const unset = {};
