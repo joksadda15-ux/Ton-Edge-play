@@ -12,6 +12,7 @@
 
 import { cyInc, cyMin } from '../lib/cycleStats.js';
 import { getDb } from '../lib/mongodb.js';
+import { publicUser } from '../lib/publicUser.js';
 import { verifyTelegramInit } from '../lib/auth.js';
 import { checkReferralVelocity, alertIpSignupVelocity } from '../lib/velocity.js';
 import { getClientIp, checkDevice, claimDevice, claimDeviceForUser, getOwnerPublicInfo, registryKey, recordSignupAndCheckVelocity, IP_SIGNUP_VELOCITY_THRESHOLD } from '../lib/ipRegistry.js';
@@ -91,7 +92,7 @@ export default async function handler(req, res) {
       );
       if (!user) return res.status(404).json({ error: 'User not found' });
       if (user.isBanned) return res.status(403).json({ error: 'Account banned' });
-      return res.status(200).json({ success: true, user });
+      return res.status(200).json({ success: true, user: publicUser(user) });
     }
 
     // ── POST /api/user  (register / app-open heartbeat) ───────────
@@ -132,7 +133,7 @@ export default async function handler(req, res) {
           { returnDocument: 'after' }
         );
         const userDoc = updated?.value || updated;
-        return res.status(200).json({ success: true, user: userDoc, isNew: false });
+        return res.status(200).json({ success: true, user: publicUser(userDoc), isNew: false });
       }
 
       // permanently banned Telegram IDs can never open a fresh account
@@ -191,7 +192,7 @@ export default async function handler(req, res) {
       } catch (e) {
         if (e?.code === 11000) { // the same account was created by a parallel request: open it, pay nobody
           const again = await users.findOne({ telegramId: tgId });
-          return res.status(200).json({ success: true, user: again, isNew: false });
+          return res.status(200).json({ success: true, user: publicUser(again), isNew: false });
         }
         throw e;
       }
@@ -208,7 +209,7 @@ export default async function handler(req, res) {
       const devKey = registryKey(fp, clientIp);
       if (devKey && !devKey.startsWith('ip:')) { const c = await checkDevice(db, fp, clientIp, tgId); if (c.unclaimed) await claimDevice(db, devKey, tgId); }
       checkAndRecordFingerprint(db, tgId, fp).catch(() => {});
-      return res.status(200).json({ success: true, user: newUser, isNew: true });
+      return res.status(200).json({ success: true, user: publicUser(newUser), isNew: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
@@ -216,4 +217,4 @@ export default async function handler(req, res) {
     console.error('user.js error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
-                                   }
+          }
