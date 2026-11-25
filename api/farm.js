@@ -10,6 +10,7 @@ import { refCheck } from '../lib/refReward.js';
 import { detectBotPattern, lockForBotPattern, AD_CLAIM_HISTORY_KEEP } from '../lib/botGuard.js';
 import { trapHit, decoyFieldsIn } from '../lib/traps.js';
 import { humanNeeded } from '../lib/humanCheck.js';
+import { AD_SAFETY_DAYS } from '../lib/adCleanup.js';
 
 // ===== EDIT HERE: farm settings (50,000 MM$ = $1) =====
 // hours = how often you can claim, reward = MM$ per claim, price = MM$ to buy (0 = free)
@@ -190,7 +191,7 @@ export default async function handler(req, res) {
     await refCheck(db, updated); // referral milestone: friend made 3 farm claims today
 
     // drop day-counters older than 30 days so the object does not grow forever
-    const cutoffKey = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const cutoffKey = new Date(Date.now() - AD_SAFETY_DAYS * 86400000).toISOString().slice(0, 10);
     const stale = Object.keys(updated.adTasks || {}).filter((k) => k < cutoffKey);
     if (stale.length) {
       const unset = {};
@@ -202,4 +203,4 @@ export default async function handler(req, res) {
 
   await trapHit(db, tgId, 'unknown_action', `farm: ${String(action).slice(0, 40)}`); // 🪤 the app only sends unlock / start / claim
   return res.status(400).json({ error: 'Unknown action' });
-           }
+        }
