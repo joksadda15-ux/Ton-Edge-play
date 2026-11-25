@@ -10,6 +10,8 @@ import { ensureAllIndexes } from '../lib/indexes.js';
 import { isCronAuthorized } from '../lib/cronAuth.js';
 import { tgSend } from '../lib/tg.js';
 import { bdTodayKey } from '../lib/dateUtils.js';
+import { archiveAndPruneAds } from '../lib/adCleanup.js';
+import { runBackup } from '../lib/backup.js';
 
 // ===== EDIT HERE =====
 const APP_URL = 'https://ton-edge-play.vercel.app';
@@ -26,6 +28,11 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 export default async function handler(req, res) {
   if (!isCronAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
   if (req.query?.job === 'setupIndexes') return res.status(200).json({ ok: true, results: await ensureAllIndexes(await getDb()) }); // open in a browser to see which indexes are OK
+  // 🧹💾 ONCE a day (cron-job.org, set it ~03:00 Bangladesh time when nobody plays):
+  //   GET https://gram-edge-farm.onrender.com/api/cron?job=maintenance&secret=CRON_SECRET
+  //   1) backup → Telegram (admin)   2) ads data: archive + delete older than 15 days
+  //   &force=1 runs it again today. Backup runs FIRST, so nothing is cleaned before it is safely saved.
+  if (req.query?.job === 'maintenance') return runMaintenance(req, res);
   if (req.query?.job !== 'dailyNotify') return res.status(400).json({ ok: false, error: 'unknown_job' });
 
   const db = await getDb();
@@ -71,3 +78,36 @@ async function runNotify(db, today) {
   await settings.updateOne({ _id: 'dailyNotify' }, { $set: { status: 'done', finishedAt: new Date(), sent, failed } });
   if (process.env.ADMIN_ID) tgSend(process.env.ADMIN_ID, `🔔 <b>Daily notification done</b>\n\n✅ Sent: <b>${sent}</b>\n❌ Failed: <b>${failed}</b>`).catch(() => {});
                                  }
+
+async function runMaintenance(req, res) {
+  const db = await getDb();
+  const today = bdTodayKey();
+  const settings = db.collection('botSettings');
+  await settings.updateOne({ _id: 'maintenance' }, { $setOnInsert: { day: null, status: 'idle' } }, { upsert: true });
+  const force = req.query?.force === '1';
+  const claimed = await settings.findOneAndUpdate(
+    { _id: 'maintenance', ...(force ? {} : { $or: [{ day: { $ne: today } }, { status: 'running', startedAt: { $lt: new Date(Date.now() - 30 * 60000) } }] }) },
+    { $set: { day: today, status: 'running', startedAt: new Date() } },
+    { returnDocument: 'after' }
+  );
+  if (!(claimed?.value !== undefined ? claimed.value : claimed)) return res.status(200).json({ ok: true, skipped: 'already_done_today' });
+  res.status(200).json({ ok: true, started: true });   // answer the cron right away, work in the background
+  (async () => {
+    const out = {};
+    try {
+      if (process.env.BACKUP_OFF === '1') out.backup = 'off';
+      else out.backup = await runBackup(db);
+    } catch (e) { out.backupError = String(e.message).slice(0, 120); }
+    // the clean-up runs only if the backup worked (or was switched off on purpose): never delete before a safe copy exists
+    if (!out.backupError) {
+      try { out.ads = await archiveAndPruneAds(db); } catch (e) { out.adsError = String(e.message).slice(0, 120); }
+    } else out.ads = 'skipped (backup failed)';
+    const ok = !out.backupError && !out.adsError;
+    await settings.updateOne({ _id: 'maintenance' }, { $set: { status: ok ? 'done' : 'failed', finishedAt: new Date(), result: out } });
+    if (process.env.ADMIN_ID) {
+      const b = out.backup?.mb != null ? `💾 Backup sent (${out.backup.mb} MB)` : out.backupError ? `❌ Backup FAILED: ${out.backupError}` : '💾 Backup off';
+      const a = out.ads?.cutoff ? `🧹 Ads data: ${out.ads.usersCleaned} users cleaned (older than ${out.ads.cutoff}), ${out.ads.archivedRows} stat rows saved` : `🧹 Ads clean-up: ${out.adsError || out.ads}`;
+      tgSend(process.env.ADMIN_ID, `🛠 <b>Daily maintenance</b>\n\n${b}\n${a}`).catch(() => {});
+    }
+  })().catch((e) => console.error('maintenance failed:', e));
+}
