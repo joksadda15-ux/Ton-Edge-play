@@ -5,6 +5,7 @@
 // 🛡 Protected by lib/shield.js (rate limits, auto-block, webhook secret) + crash guards below.
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 
 import user from './api/user.js';
 import tasks from './api/tasks.js';
@@ -28,6 +29,10 @@ process.on('uncaughtException', (e) => console.error('uncaughtException:', e));
 
 const app = express();
 app.disable('x-powered-by');
+app.set('etag', false);   // ETag = hashing every JSON body for nothing (the app's URLs carry fresh initData, so 304 never happens): saves CPU on the 0.1 CPU free instance
+// 📉 gzip every JSON answer: the same data uses ~70-80% LESS Render bandwidth (the free plan only has 5 GB/month).
+// level 4 + 512-byte threshold = small CPU cost; tiny answers (like /health) are sent as they are.
+app.use(compression({ level: 4, threshold: 512 }));
 app.set('trust proxy', true); // so x-forwarded-for / IP checks work behind the host's proxy
 app.use((_req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); next(); });
 
